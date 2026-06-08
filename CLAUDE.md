@@ -108,7 +108,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - **角色**：`admin` 管理用户、看所有数据；`sales` 只看自己的项目和图片 + 全局默认图片（`created_by IS NULL`）
 - **数据隔离**：所有项目/图片查询函数接受 `userId` / `isAdmin` 参数，后端强制过滤
 - **用户管理**：仅 admin 可在用户管理页创建/编辑/删除销售账号、重置密码，无开放注册。API 由 `user-store.mjs` 处理
-- **用户联系方式**：users 表存储 6 个联系方式字段（company/contact_name/whatsapp/email_contact/website/phone），admin 在用户管理页填写，sales 在个人中心自行编辑。创建新项目时 `createDefaultProjectData(product, user)` 从当前用户联系方式填充 `from` 和 `footer`，字段为空时 fallback 到默认值（Krystal 的信息）
+- **用户联系方式**：users 表存储 `display_name` + 6 个联系方式字段（company/contact_name/whatsapp/email_contact/website/phone），admin 在用户管理页填写，sales 在个人中心自行编辑。前端直接使用数据库字段名（`state.user.display_name`，非驼峰）。创建新项目时 `createDefaultProjectData(product, user)` 从当前用户联系方式填充 `from` 和 `footer`，字段为空时 fallback 到默认值（Krystal 的信息）。个人中心保存后需手动更新 banner/顶栏 DOM（不会自动重渲染）
 
 ### Frontend State & Data Binding
 
@@ -133,7 +133,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 |------|------|------|
 | POST | `/api/login` | 登录，设 HttpOnly cookie |
 | GET | `/api/me` | 当前用户（未登录返回 null） |
-| PUT | `/api/me/profile` | 修改自己的联系方式（需登录，不可改 role/displayName） |
+| PUT | `/api/me/profile` | 修改自己的联系方式和显示名称（需登录，body 驼峰如 `displayName`，返回的 `user` 对象为数据库下划线字段） |
 | POST | `/api/logout` | 登出 |
 | GET/POST | `/api/users` | 用户列表 / 创建用户（仅 admin） |
 | PUT/DELETE/POST | `/api/users/:id` | 修改用户 / 删除用户 / 重置密码（仅 admin） |
@@ -156,12 +156,12 @@ main.js ← 以上所有（顶层编排，无人导入它）
   - `"accessory"`：配件，通过 `parentId` 绑定父产品，不可独立移动，紧跟父产品排列
   - 配件卡片样式不同（虚线边框 + "配件"标签），名称可编辑（`accessoryName` 字段）
   - **配件参数结构为数组**：`parameters: [{ name, quantity, unitPrice, lineTotal, unit }]`，每个参数行有独立的数量/单价/行总价/单位。旧格式 `{key: true}` 对象在 `normalizeQuoteItem` 中自动迁移
-  - **配件每行参数独立单位**：每个参数行有自己的 `unit` 字段，默认为空（无兜底 `"set"`）。空单位时数量/单价无后缀；有单位时后缀遵循复数规则（qty=1 → `/unit`，qty>1 → `/units`）
+  - **配件每行参数独立单位**：每个参数行有自己的 `unit` 字段，默认为空（无兜底 `"set"`）。空单位时数量/单价无后缀；有单位时**数量**后缀遵循复数规则（qty=1 → `/unit`，qty>1 → `/units`），**单价**后缀始终用单数形式（`/unit`，不加 s）。单位输入框聚焦时下方显示快捷选项列表（`data-unit-pick`）
   - **配件卡片级定价已移除**：pricing 只保留 `totalAmount`（由 `recalcAccessoryTotal()` 汇总参数行总价，用于报价总价汇总），不再有卡片级 `quantity`/`unitPrice`
   - `buildItemGroups()` 将扁平数组分组（产品+其配件），移动/删除按组操作
   - 报价单中配件行为多行结构：主行只显示名称（最右列留空），子行显示各参数的数量/单价/行总价（含 `$` 前缀）
 - **产品选择逻辑**：产品条上的卡片支持点击切换——点击未选中的产品添加到清单（按添加顺序自动编号），点击已选中的产品移除及其配件。允许空产品列表（新建项目仍默认预置欧式葫芦）
-- 数量/单价输入框仅允许纯数字输入（`inputmode="decimal"`）。**产品**数量后缀动态：1 → `/set`，>1 → `/sets`；单价固定 `/set`。**配件**每行参数有独立 `unit` 字段（默认空），后缀为空时不显示，有单位时 qty=1 → `/unit`，qty>1 → `/units`（加 s 复数）
+- 数量/单价输入框仅允许纯数字输入（`inputmode="decimal"`）。**产品**数量后缀动态：1 → `/set`，>1 → `/sets`；单价固定 `/set`。**配件**每行参数有独立 `unit` 字段（默认空），数量后缀为空时不显示，有单位时 qty=1 → `/unit`，qty>1 → `/units`（加 s 复数）；单价后缀有单位时始终为 `/unit`（单数，不加 s）
 - **价格列 `$` 对齐**：报价单中 Total Amount 列和 Summary 行（SUBTOTAL/FREIGHT/TOTAL）的数值使用 `text-align: left; padding-left: 20px`，确保所有 `$` 符号在同一竖线上对齐。Summary grid 为 `1fr 147px`（147px 精确匹配 Total Amount 列宽）。三处 CSS 同步
 - **TOTAL 可编辑**：Pricing 模块的 TOTAL 字段可编辑。启用 Subtotal + Freight 时，编辑 TOTAL 会反算 FREIGHT（`recalcFreightFromTotal`）；未启用时 TOTAL 直接使用用户输入值
 - **配件序号颜色**：配件序号圆圈为橙色（`#e8830c`），产品为蓝色（`#1f5bd6`），通过 `.is-accessory .quote-item-no` 覆盖

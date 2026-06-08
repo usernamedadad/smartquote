@@ -82,12 +82,12 @@
   text-align: center;
 }
 
-.quote-sheet .accessory-detail-row td:nth-child(5) {
+.quote-sheet .accessory-detail-row td:nth-child(4) {
   padding-left: 20px;
   text-align: left;
 }
 
-.quote-sheet .accessory-detail-row td:nth-child(2) {
+.quote-sheet .accessory-detail-row td:nth-child(1) {
   padding: 1px 26px;
   text-align: left;
 }
@@ -131,6 +131,10 @@
 
 .quote-sheet .accessory-row h3 {
   margin-bottom: 0;
+}
+
+.quote-sheet .accessory-row td:first-child {
+  vertical-align: middle;
 }
 
 .quote-sheet .product-row p {

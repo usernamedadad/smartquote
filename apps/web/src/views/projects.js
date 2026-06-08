@@ -4,7 +4,7 @@
 import { state, app } from "../state.js";
 import { api, loadWorkspace, createProject, deleteProject } from "../api.js";
 import { escapeHtml, formatTime } from "../utils.js";
-import { showContentModal } from "../ui.js";
+import { showContentModal, showAppModal } from "../ui.js";
 import { moduleIconSvg, plusIconSvg, chevronRightSvg } from "../icons.js";
 import { quoteBodyMarkup, normalizeQuoteLayout, normalizeQuoteItems, normalizeGalleryLayout } from "../quote-template.js";
 import { profileDashboardMarkup, bindProfileBindings } from "./profile.js";
@@ -114,6 +114,7 @@ export function renderProjectsPage() {
   bindFilterDropdown();
   bindViewModeToggle();
   bindProjectSearch();
+  bindManageMode();
   bindProfileBindings();
 }
 
@@ -152,6 +153,8 @@ function projectsDashboardMarkup() {
   const filtered = getFilteredProjects();
   const isCard = state.projectViewMode !== "list";
   const currentFilter = FILTER_OPTIONS.find((o) => o.value === (state.projectFilter || "all"));
+  const manageMode = !!state.projectManageMode;
+  const selectedCount = (state.selectedProjectIds || []).length;
   return `
     <div class="home-hero">
       <div class="home-hero-user">
@@ -177,7 +180,16 @@ function projectsDashboardMarkup() {
       </div>
       <button class="icon-button ${isCard ? "active" : ""}" title="卡片视图" data-view-mode="card">${moduleIconSvg("parameters")}</button>
       <button class="icon-button ${!isCard ? "active" : ""}" title="列表视图" data-view-mode="list">${moduleIconSvg("footer")}</button>
+      ${manageMode
+        ? `<button class="ghost-button" data-exit-manage>取消</button>`
+        : `<button class="ghost-button" data-enter-manage>管理</button>`}
     </div>
+    ${manageMode && selectedCount > 0 ? `
+      <div class="batch-action-bar">
+        <span>已选择 ${selectedCount} 个项目</span>
+        <button class="ghost-button batch-delete-btn" data-batch-delete>删除所选</button>
+      </div>
+    ` : ""}
     <div class="quote-list-heading">
       <h2>${state.projectFilter === "all" ? "全部" : currentFilter?.label || ""}报价单（${filtered.length}）</h2>
     </div>
@@ -189,7 +201,7 @@ function projectsDashboardMarkup() {
             <span>新建报价单</span>
           </div>
         </button>
-        ${filtered.map(projectRowMarkup).join("")}
+        ${filtered.map(p => projectRowMarkup(p, manageMode)).join("")}
       </div>
     ` : `
       <div class="project-list-table">
@@ -269,21 +281,23 @@ function miniQuotePreviewMarkup(project) {
   }
 }
 
-export function projectRowMarkup(project) {
+export function projectRowMarkup(project, manageMode = false) {
+  const selected = (state.selectedProjectIds || []).includes(project.id);
   return `
-    <article class="project-card">
+    <article class="project-card${manageMode ? " manage-mode" : ""}${selected ? " selected" : ""}" ${manageMode ? `data-toggle-select="${project.id}"` : ""}>
+      ${manageMode ? `<span class="card-check-mark">${selected ? "✓" : ""}</span>` : ""}
       ${miniQuotePreviewMarkup(project)}
       <div class="card-body">
-        <button class="card-title" data-open-project="${project.id}">${escapeHtml(project.projectName)}</button>
+        <button class="card-title" data-open-project="${manageMode ? "" : project.id}">${escapeHtml(project.projectName)}</button>
         <span class="card-time">${formatTime(project.createdAt)}</span>
       </div>
-      <div class="card-menu">
+      ${!manageMode ? `<div class="card-menu">
         <button class="card-menu-trigger" type="button" data-toggle-card-menu="${project.id}">⋮</button>
         <div class="card-menu-panel" data-card-menu-panel="${project.id}">
           <button data-rename-project="${project.id}">重命名</button>
           <button data-delete-project="${project.id}">删除</button>
         </div>
-      </div>
+      </div>` : ""}
     </article>
   `;
 }
@@ -464,5 +478,53 @@ function bindProjectSearch() {
       const text = card.textContent.toLowerCase();
       card.style.display = text.includes(query) ? "" : "none";
     });
+  });
+}
+
+function bindManageMode() {
+  const enterBtn = document.querySelector("[data-enter-manage]");
+  const exitBtn = document.querySelector("[data-exit-manage]");
+  enterBtn?.addEventListener("click", () => {
+    state.projectManageMode = true;
+    state.selectedProjectIds = [];
+    renderProjectsPage();
+  });
+  exitBtn?.addEventListener("click", () => {
+    state.projectManageMode = false;
+    state.selectedProjectIds = [];
+    renderProjectsPage();
+  });
+  document.querySelectorAll("[data-toggle-select]").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("[data-open-project]")) return;
+      const id = Number(card.dataset.toggleSelect);
+      if (!state.selectedProjectIds) state.selectedProjectIds = [];
+      const idx = state.selectedProjectIds.indexOf(id);
+      if (idx === -1) {
+        state.selectedProjectIds.push(id);
+      } else {
+        state.selectedProjectIds.splice(idx, 1);
+      }
+      renderProjectsPage();
+    });
+  });
+  const batchBtn = document.querySelector("[data-batch-delete]");
+  batchBtn?.addEventListener("click", async () => {
+    const ids = state.selectedProjectIds || [];
+    if (!ids.length) return;
+    const action = await showAppModal({
+      title: "批量删除",
+      message: `确定要删除选中的 ${ids.length} 个项目吗？此操作不可撤销。`,
+      tone: "warning",
+      actions: [{ label: "取消", value: "cancel" }, { label: "删除", value: "delete" }]
+    });
+    if (action !== "delete") return;
+    for (const id of ids) {
+      await deleteProject(id);
+    }
+    state.projectManageMode = false;
+    state.selectedProjectIds = [];
+    await loadWorkspace();
+    renderProjectsPage();
   });
 }

@@ -72,10 +72,11 @@ ${css}
 .accessory-row td { height: auto; padding: 4px 10px; }
 .accessory-row td:nth-child(2) { padding-top: 6px; padding-bottom: 2px; }
 .accessory-row h3 { margin-bottom: 0; }
+.accessory-row td:first-child { vertical-align: middle; }
 .accessory-detail-row td { height: auto; padding: 1px 0; font-size: 14px; text-align: center; }
-.accessory-detail-row td:nth-child(2) { padding: 1px 26px; text-align: left; }
+.accessory-detail-row td:nth-child(1) { padding: 1px 26px; text-align: left; }
 .product-row td:nth-child(5) { padding-left: 20px; text-align: left; }
-.accessory-detail-row td:nth-child(5) { padding-left: 20px; text-align: left; }
+.accessory-detail-row td:nth-child(4) { padding-left: 20px; text-align: left; }
 .summary-line { grid-template-columns: 1fr 147px; min-height: 28px; height: auto; }
 .summary-line span { text-align: center; }
 .summary-line strong { padding-left: 20px; text-align: left; }

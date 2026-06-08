@@ -41,9 +41,9 @@ export function topbarMarkup(scope) {
           <button class="ghost-button" data-translate>${translateIconSvg()} ${escapeHtml(getTranslationLabel())}</button>
           <button class="primary-button" data-export-pdf>导出 PDF</button>
           <i class="topbar-divider" aria-hidden="true"></i>
-          <span>${escapeHtml(state.user?.displayName || "")}</span>
+          <span class="topbar-username">${escapeHtml(state.user?.display_name || state.user?.username || "")}</span>
         ` : `
-          <span>${escapeHtml(state.user?.displayName || "")}</span>
+          <span class="topbar-username">${escapeHtml(state.user?.display_name || state.user?.username || "")}</span>
           <button class="ghost-button" data-logout>退出</button>
         `}
       </div>

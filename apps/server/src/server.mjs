@@ -140,7 +140,7 @@ async function handleApi(req, res, url) {
   if (req.method === "PUT" && url.pathname === "/api/me/profile") {
     const body = await readJson(req);
     const updated = updateUser(user.id, {
-      displayName: user.display_name,
+      displayName: body.displayName || user.display_name,
       role: user.role,
       company: body.company,
       contactName: body.contactName,

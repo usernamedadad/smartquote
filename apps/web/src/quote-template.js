@@ -122,7 +122,7 @@ function partyCardMarkup(partyId, data, options) {
   const source = partyId === "to" ? (data.to || {}) : (data.from || {});
   const labels = options.labels || DEFAULT_LABELS;
   const label = partyId === "to" ? labels.to : labels.from;
-  const title = partyId === "to" ? source.company || source.name : source.company;
+  const title = source.company;
   const drag = options.draggable ? `draggable="true" data-preview-party="${partyId}"` : "";
   const dragClass = options.draggable ? " draggable-party-card" : "";
 
@@ -187,14 +187,14 @@ function accessoryRowsMarkup(item, index) {
   const name = escapeHtml(item.accessoryName || item.product?.enName || "");
   const rowSep = index > 0 ? "product-row-separated" : "";
 
-  const detailRows = params.filter((p) => p.name.trim()).map((p) => {
+  const visibleParams = params.filter((p) => p.name.trim());
+  const detailRows = visibleParams.map((p) => {
     const pUnit = p.unit || fallbackUnit;
     const qtyNum = parseFloat(extractNumeric(p.quantity)) || 0;
-    const unitForm = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
-    const pQty = p.quantity ? (unitForm ? `${extractNumeric(p.quantity)} ${unitForm}` : extractNumeric(p.quantity)) : "";
-    const pPrice = p.unitPrice ? (unitForm ? `$${extractNumeric(p.unitPrice)}/${unitForm}` : `$${extractNumeric(p.unitPrice)}`) : "";
+    const qtyUnitForm = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
+    const pQty = p.quantity ? (qtyUnitForm ? `${extractNumeric(p.quantity)} ${qtyUnitForm}` : extractNumeric(p.quantity)) : "";
+    const pPrice = p.unitPrice ? (pUnit ? `$${extractNumeric(p.unitPrice)}/${pUnit}` : `$${extractNumeric(p.unitPrice)}`) : "";
     return `<tr class="accessory-detail-row">
-      <td></td>
       <td>- ${escapeHtml(p.name)}</td>
       <td>${escapeHtml(pQty)}</td>
       <td>${escapeHtml(pPrice)}</td>
@@ -203,7 +203,7 @@ function accessoryRowsMarkup(item, index) {
   }).join("");
 
   return `<tr class="product-row accessory-row ${rowSep}">
-    <td>${index + 1}.</td>
+    <td rowspan="${visibleParams.length + 1}">${index + 1}.</td>
     <td><h3>${name}</h3></td>
     <td></td><td></td><td></td>
   </tr>${detailRows}`;

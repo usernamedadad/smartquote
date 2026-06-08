@@ -44,6 +44,12 @@ export function profileDashboardMarkup() {
         <span class="profile-section-desc">编辑后将应用到新建的报价单</span>
       </div>
       <form class="profile-contact-form">
+        <div class="profile-display-name-row">
+          <label class="profile-contact-field">
+            <span class="profile-contact-label">显示名称</span>
+            <input name="displayName" value="${escapeHtml(u.display_name || "")}" placeholder="例如：Krystal Gao">
+          </label>
+        </div>
         <div class="profile-contact-grid">
           <label class="profile-contact-field">
             <span class="profile-contact-label">公司名称</span>
@@ -143,6 +149,7 @@ function bindProfileContact() {
     const res = await api("/api/me/profile", {
       method: "PUT",
       body: {
+        displayName: fd.get("displayName") || "",
         company: fd.get("company") || "",
         contactName: fd.get("contactName") || "",
         whatsapp: fd.get("whatsapp") || "",
@@ -155,7 +162,16 @@ function bindProfileContact() {
       showToast(res.error, { tone: "error" });
       return;
     }
-    if (res.user) state.user = res.user;
+    if (res.user) {
+      state.user = res.user;
+      const name = res.user.display_name || res.user.username || "";
+      const initial = name[0].toUpperCase();
+      const avatar = document.querySelector(".profile-avatar");
+      const bannerName = document.querySelector(".profile-banner-info h1");
+      if (avatar) avatar.textContent = initial;
+      if (bannerName) bannerName.textContent = name;
+      document.querySelectorAll(".topbar-username").forEach((el) => { el.textContent = name; });
+    }
     showToast("联系方式已保存");
   });
 }

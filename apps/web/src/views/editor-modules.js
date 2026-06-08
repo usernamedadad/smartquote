@@ -205,31 +205,46 @@ function accessoryCardMarkup(item, index, allItems, collapsed) {
 function accessoryParamGroupMarkup(itemIndex, paramIndex, param) {
   const pUnit = param.unit || "";
   const qtyNum = parseFloat(extractNumeric(param.quantity)) || 0;
-  const suffix = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
-  const suffixHtml = suffix ? `<b class="param-unit-suffix">${escapeHtml(suffix)}</b>` : '<b class="param-unit-suffix"></b>';
+  const qtySuffix = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
+  const priceSuffix = pUnit || "";
+  const qtySuffixHtml = qtySuffix ? `<span class="param-suffix qty-suffix">${escapeHtml(qtySuffix)}</span>` : '<span class="param-suffix qty-suffix"></span>';
+  const priceSuffixHtml = priceSuffix ? `<span class="param-suffix price-suffix">${escapeHtml(priceSuffix)}</span>` : '<span class="param-suffix price-suffix"></span>';
   return `
     <div class="accessory-param-group">
       <div class="accessory-param-name-row">
-        <input type="text" value="${escapeHtml(param.name)}" data-accessory-param-name="${itemIndex}:${paramIndex}" placeholder="参数名称">
-        <span class="param-unit-field">
-          <input type="text" value="${escapeHtml(pUnit)}" data-accessory-param-unit="${itemIndex}:${paramIndex}" placeholder="单位">
+        <input type="text" class="param-name-input" value="${escapeHtml(param.name)}" data-accessory-param-name="${itemIndex}:${paramIndex}" placeholder="参数名称">
+        <span class="param-unit-wrap">
+          <input type="text" class="param-unit-input" value="${escapeHtml(pUnit)}" data-accessory-param-unit="${itemIndex}:${paramIndex}" placeholder="单位">
+          <div class="param-unit-droplist">
+            <button type="button" data-unit-pick="set">set</button>
+            <button type="button" data-unit-pick="meter">meter</button>
+          </div>
         </span>
         <button class="accessory-param-remove" type="button" data-remove-accessory-param="${itemIndex}:${paramIndex}" title="删除">×</button>
       </div>
       <div class="accessory-param-pricing-row">
-        <span class="money-control with-suffix">
-          <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:quantity" value="${escapeHtml(extractNumeric(param.quantity))}" inputmode="decimal" placeholder="数量">
-          ${suffixHtml}
-        </span>
-        <span class="money-control with-suffix">
-          <em>$</em>
-          <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:unitPrice" value="${escapeHtml(extractNumeric(param.unitPrice))}" inputmode="decimal" placeholder="单价">
-          ${suffixHtml}
-        </span>
-        <span class="money-control">
-          <em>$</em>
-          <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:lineTotal" value="${escapeHtml(extractNumeric(param.lineTotal))}" readonly placeholder="行总价">
-        </span>
+        <label class="param-field">
+          <span>数量</span>
+          <span class="param-input-wrap">
+            <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:quantity" value="${escapeHtml(extractNumeric(param.quantity))}" inputmode="decimal" placeholder="0">
+            ${qtySuffixHtml}
+          </span>
+        </label>
+        <label class="param-field">
+          <span>单价</span>
+          <span class="param-input-wrap">
+            <em>$</em>
+            <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:unitPrice" value="${escapeHtml(extractNumeric(param.unitPrice))}" inputmode="decimal" placeholder="0">
+            ${priceSuffixHtml}
+          </span>
+        </label>
+        <label class="param-field">
+          <span>总价</span>
+          <span class="param-input-wrap">
+            <em>$</em>
+            <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:lineTotal" value="${escapeHtml(extractNumeric(param.lineTotal))}" readonly placeholder="0">
+          </span>
+        </label>
       </div>
     </div>
   `;
@@ -457,7 +472,7 @@ function fieldMarkup(label, path, value) {
   return `
     <label class="field">
       <span>${escapeHtml(label)}</span>
-      <input data-path="${path}" value="${escapeHtml(value)}">
+      <input data-path="${path}" value="${escapeHtml(value)}" autocomplete="off">
     </label>
   `;
 }
@@ -684,18 +699,49 @@ function bindEditorFields(container) {
       const qtyNum = parseFloat(extractNumeric(param.quantity)) || 0;
       const group = input.closest(".accessory-param-group");
       if (newUnit) {
-        const unitForm = qtyNum === 1 ? newUnit : `${newUnit}s`;
-        if (param.quantity) param.quantity = `${extractNumeric(param.quantity)} ${unitForm}`;
-        if (param.unitPrice) param.unitPrice = `$${extractNumeric(param.unitPrice)} ${unitForm}`;
-        if (group) group.querySelectorAll(".param-unit-suffix").forEach((el) => { el.textContent = unitForm; });
+        const qtyUnitForm = qtyNum === 1 ? newUnit : `${newUnit}s`;
+        if (param.quantity) param.quantity = `${extractNumeric(param.quantity)} ${qtyUnitForm}`;
+        if (param.unitPrice) param.unitPrice = `$${extractNumeric(param.unitPrice)} /${newUnit}`;
+        if (group) {
+          const qtySfx = group.querySelector(".qty-suffix");
+          const priceSfx = group.querySelector(".price-suffix");
+          if (qtySfx) qtySfx.textContent = qtyUnitForm;
+          if (priceSfx) priceSfx.textContent = newUnit;
+        }
       } else {
         if (param.quantity) param.quantity = extractNumeric(param.quantity);
         if (param.unitPrice) param.unitPrice = `$${extractNumeric(param.unitPrice)}`;
-        if (group) group.querySelectorAll(".param-unit-suffix").forEach((el) => { el.textContent = ""; });
+        if (group) {
+          const qtySfx = group.querySelector(".qty-suffix");
+          const priceSfx = group.querySelector(".price-suffix");
+          if (qtySfx) qtySfx.textContent = "";
+          if (priceSfx) priceSfx.textContent = "";
+        }
       }
       markDirty();
     });
     input.addEventListener("focus", recordUndoSnapshot);
+    input.addEventListener("focus", () => {
+      const droplist = input.nextElementSibling;
+      if (droplist) droplist.classList.add("open");
+    });
+    input.addEventListener("blur", () => {
+      const droplist = input.nextElementSibling;
+      if (droplist) setTimeout(() => droplist.classList.remove("open"), 150);
+    });
+  });
+
+  container.querySelectorAll("[data-unit-pick]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const wrap = btn.closest(".param-unit-wrap");
+      const input = wrap?.querySelector("[data-accessory-param-unit]");
+      if (!input) return;
+      input.value = btn.dataset.unitPick;
+      input.dispatchEvent(new Event("input"));
+      const droplist = wrap.querySelector(".param-unit-droplist");
+      if (droplist) droplist.classList.remove("open");
+    });
   });
 
   container.querySelectorAll("[data-accessory-param-name]").forEach((input) => {
@@ -731,14 +777,15 @@ function bindEditorFields(container) {
         const qtyNum = parseFloat(input.value.trim()) || 0;
         const unitForm = unit ? (qtyNum === 1 ? unit : `${unit}s`) : "";
         param.quantity = input.value.trim() ? (unitForm ? `${input.value.trim()} ${unitForm}` : input.value.trim()) : "";
-        /* 数量变化时更新后缀（复数联动） */
+        /* 数量变化时只更新数量后缀（复数联动），单价后缀不变 */
         const group = input.closest(".accessory-param-group");
-        if (group) group.querySelectorAll(".param-unit-suffix").forEach((el) => { el.textContent = unitForm || ""; });
+        if (group) {
+          const qtySfx = group.querySelector(".qty-suffix");
+          if (qtySfx) qtySfx.textContent = unitForm || "";
+        }
       } else if (field === "unitPrice") {
         const unit = param.unit || "";
-        const qtyNum = parseFloat(extractNumeric(param.quantity)) || 0;
-        const unitForm = unit ? (qtyNum === 1 ? unit : `${unit}s`) : "";
-        param.unitPrice = input.value.trim() ? (unitForm ? `$${input.value.trim()}/${unitForm}` : `$${input.value.trim()}`) : "";
+        param.unitPrice = input.value.trim() ? (unit ? `$${input.value.trim()}/${unit}` : `$${input.value.trim()}`) : "";
       }
 
       if (field === "quantity" || field === "unitPrice") {

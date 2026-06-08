@@ -349,6 +349,10 @@ body {
   margin-bottom: 0;
 }
 
+.accessory-row td:first-child {
+  vertical-align: middle;
+}
+
 .accessory-detail-row td {
   height: auto;
   padding: 1px 0;
@@ -356,12 +360,12 @@ body {
   text-align: center;
 }
 
-.accessory-detail-row td:nth-child(5) {
+.accessory-detail-row td:nth-child(4) {
   padding-left: 20px;
   text-align: left;
 }
 
-.accessory-detail-row td:nth-child(2) {
+.accessory-detail-row td:nth-child(1) {
   padding: 1px 26px;
   text-align: left;
 }
