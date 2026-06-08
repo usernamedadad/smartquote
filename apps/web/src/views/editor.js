@@ -93,8 +93,8 @@ export function renderEditorPage() {
               <button class="preview-tool" type="button" title="全屏预览" data-preview-fullscreen>${fullscreenIconSvg()}</button>
             </div>
             <div class="toolbar-right">
-              <button class="preview-tool preview-switch-btn" type="button" data-switch-project>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <button class="preview-switch-btn" type="button" title="切换项目" data-switch-project>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12v14H4z" fill="none" stroke="currentColor" stroke-width="1.8" rx="2"/><path d="M8 6h12v14H8z" fill="none" stroke="currentColor" stroke-width="1.8" rx="2"/><path d="M12 6v14M8 13h12" stroke="currentColor" stroke-width="1.2" opacity="0.4"/></svg>
               </button>
             </div>
           </div>

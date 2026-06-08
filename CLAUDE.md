@@ -53,7 +53,7 @@ data/
   products.json       # 6 种产品目录及参数模板
 templates/
   index.html          # 报价单 HTML 模板（1024×1536px 固定布局，仅供参考）
-  style.css           # 报价单打印样式（服务端 + 客户端共用）
+  logo.png            # 公司 logo
 uploads/images/       # 用户上传图片存储
 storage/              # SQLite 数据库（运行时生成）
 ```
@@ -89,11 +89,11 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - **Playwright 可选**：PDF 导出在 Playwright 不可用时优雅降级
 - **项目数据存储**：报价数据以 JSON 字符串存入 `data_json` 列（非关系型规范化），每次保存序列化整个数据对象
 - **前端无框架**：全局 `state` 对象 + `innerHTML` 重渲染，无构建工具，ES modules 由浏览器原生加载。高频操作（字段输入）只刷新预览区（`markDirty()` → `renderQuotePreview()`），结构性操作（增删产品、切换模块）才全量重渲染（`_renderEditorPage()`），预览滚动位置在重渲染前后自动保存恢复
-- **CSS 拆分**：`styles.css` 为 `@import` 清单，浏览器按需加载 `css/` 下子文件
+- **CSS 拆分**：`styles.css` 为 `@import` 清单，浏览器按需加载 `css/` 下子文件。报价单 CSS 拆为 `quote-sheet-layout.css`（布局框架）和 `quote-sheet-content.css`（价格/条款/画廊等），PDF 导出直接读取这两个文件，无需维护独立的 `templates/style.css`
 - **图片上传**：通过 base64 data URL 在 JSON body 中传输（非 multipart），上限 16MB
 - **报价编号格式**：`QT-YYYYMMDD-NNN`（日期 + 当日全局序号，取最大序号+重试防并发撞号）
 - **API 错误信息**为中文，报价单输出为英文
-- **图片画廊**：CSS Grid 自动布局（根据图片数量：1 全宽 / 2 两列 / 3 上宽下两窄 / 4 两列两行 / 5-6 三列两行），`object-fit: contain` 防变形，高度 480px。用户只需选择图片 + 调整顺序，无手动定位。画廊 CSS 在三处同步维护：`css/quote-sheet-content.css`（浏览器预览）、`templates/style.css`（HTML 模板）、`renderQuote.mjs` 的 `galleryGridCss`（PDF 导出）
+- **图片画廊**：CSS Grid 自动布局（根据图片数量：1 全宽 / 2 两列 / 3 上宽下两窄 / 4 两列两行 / 5-6 三列两行），`object-fit: contain` 防变形，高度 480px。用户只需选择图片 + 调整顺序，无手动定位。画廊 CSS 只需维护一处：`css/quote-sheet-content.css`（`renderQuote.mjs` 直接读取该文件用于 PDF 导出）
 - **布局可定制**：报价单的 sections 和 parties 顺序可通过拖拽重排，存储在 `data.layout` 中
 - **项目列表页**：三栏布局（侧栏导航 + 主区域 + 信息栏），顶部显示头像+名称+角色标签，卡片网格第一个为虚线框「+」新建卡片，后续为项目卡片（顶部真实报价单缩略预览 + 下方详细信息），右下角三点菜单含重命名/删除操作。`normalizeProjectListRow` 返回完整 `data` 字段供前端渲染预览和计算金额。侧栏不含帮助模块，底部仅有退出登录
 - **个人中心页**（`views/profile.js`）：蓝色渐变 banner + 首字母头像 + 角色标签 → 统计卡片（项目数/图片数/登录账号）→ 联系方式表单（6 字段，2 列 grid）→ 密码修改表单。sales 用户可编辑自己的联系方式（`PUT /api/me/profile`），admin 只能在用户管理页编辑
@@ -238,10 +238,6 @@ sanitizeProjectData()  → 补齐缺失顶层字段
 
 ## PDF Export
 
-- **始终单页**：PDF 固定 1024×1536px 单页输出。`measureContentHeight()` 测量内容实际高度，若超过 1536px 则通过 Playwright `page.pdf({ scale })` 等比缩放至一页，内容 ≤ 1536px 时 scale = 1 行为不变
-- **CSS 一致性**：`renderQuoteHtml()` 通过内联 `<style>` 覆盖 `templates/style.css` 中的差异，确保 PDF 渲染与浏览器预览一致：产品行高度 238px、条款框 `min-height: 210px`、页脚间距 `gap: 30px`
-- **print 模式安全**：内联样式中用 `@media print { html, body { height: auto } }` 覆盖 `style.css` 的固定 1536px 高度，`@page { margin: 0 }` 去掉固定 size，避免内容截断或分页
-- **footer 定位**：`position: static !important` 确保覆盖 `style.css` 的 `position: fixed`
-- **画廊 CSS 三处同步**：浏览器预览（`css/quote-sheet-content.css`）、HTML 模板（`templates/style.css`）、PDF 导出（`renderQuote.mjs` 的 `galleryGridCss`）必须保持一致
-- **配件行 CSS 三处同步**：配件标题行/参数行的对齐样式同样需要在 `css/quote-sheet-content.css`、`templates/style.css`、`renderQuote.mjs` 内联样式中保持一致（padding、suffix 对齐等）
-- **翻译容器弹性高度**：所有承载翻译文本的容器使用 `min-height` 而非固定 `height`（`.meta-row`、`.pricing-table thead th`、`.terms-box`、`.footer-text`、`.summary-line`），确保翻译后文本换行时容器自动撑高不溢出。涉及翻译文本的 CSS 修改需同步三处
+- **CSS 一致性**：`renderQuote.mjs` 的 `quoteExportCss()` 直接读取 `css/quote-sheet-layout.css` + `css/quote-sheet-content.css` 生成 PDF 样式，浏览器预览和 PDF 导出共用同一份 CSS，无需多处同步
+- **输出策略**：`measureContentHeight()` 测量内容实际高度，PDF 页面高度取 `max(1536, contentHeight)`，确保内容不截断；内容 ≤ 1536px 时仍为标准单页尺寸
+- **翻译容器弹性高度**：所有承载翻译文本的容器使用 `min-height` 而非固定 `height`（`.meta-row`、`.pricing-table thead th`、`.terms-box`、`.footer-text`、`.summary-line`），确保翻译后文本换行时容器自动撑高不溢出

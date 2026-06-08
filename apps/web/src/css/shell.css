@@ -68,14 +68,61 @@
 .quote-number b {
   color: #63708a;
   font-weight: 700;
-  cursor: pointer;
-  border-bottom: 1px dashed transparent;
-  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.quote-number b:hover {
-  color: #1f5bd6;
-  border-bottom-color: #1f5bd6;
+.inline-rename {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inline-rename-pencil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8d96a8;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.inline-rename:hover .inline-rename-pencil {
+  opacity: 1;
+}
+
+.inline-rename-pencil:hover {
+  color: var(--accent);
+  background: rgba(223, 90, 41, 0.08);
+}
+
+.inline-rename-pencil svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.inline-rename-input {
+  width: 200px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: #fff;
+  color: #1f2735;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(223, 90, 41, 0.12);
 }
 
 .topbar-actions {

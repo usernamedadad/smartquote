@@ -12,7 +12,8 @@ import { renderProjectsPage, registerProjectsCallbacks } from "./views/projects.
 import { renderEditorPage, registerEditorCallbacks } from "./views/editor.js";
 import { registerEditorModulesCallbacks } from "./views/editor-modules.js";
 import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
-import { markDirty } from "./views/preview.js";
+import { markDirty, registerPreviewCallbacks } from "./views/preview.js";
+import { rerenderSelectedImages } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
 
 /* ---- 注册回调（解决循环依赖） ---- */
@@ -24,6 +25,7 @@ registerUsersCallbacks({ renderProjectsPage });
 registerProjectsCallbacks({ openProject, uploadImage, uploadImageFromFile, deleteImage, renderUsersPage });
 registerEditorCallbacks({ uploadImage, deleteImage, openProject, loadWorkspace });
 registerEditorModulesCallbacks({ renderEditorPage });
+registerPreviewCallbacks({ rerenderSelectedImages });
 registerTranslateCallbacks({ renderEditorPage });
 
 /* ---- 全局错误捕获 ---- */

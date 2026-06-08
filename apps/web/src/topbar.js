@@ -4,8 +4,8 @@
 import { state } from "./state.js";
 import { escapeHtml } from "./utils.js";
 import { saveProject, saveStateText, api } from "./api.js";
-import { confirmUnsavedLeave, showContentModal } from "./ui.js";
-import { translateIconSvg } from "./icons.js";
+import { confirmUnsavedLeave } from "./ui.js";
+import { translateIconSvg, pencilIconSvg } from "./icons.js";
 import { translateQuote, getTranslationLabel } from "./translate.js";
 
 let _renderLoginPage, _loadWorkspace, _renderProjectsPage, _renderEditorPage, _exportPdf;
@@ -29,14 +29,14 @@ export function topbarMarkup(scope) {
         </span>
         ${project ? `
           <i class="topbar-divider" aria-hidden="true"></i>
-          <span class="quote-number">当前项目：<b id="topbar-project-name" data-rename-current-project>${escapeHtml(project.projectName)}</b></span>
+          <button class="ghost-button" data-back-projects>返回主页</button>
           <i class="topbar-divider" aria-hidden="true"></i>
-          <span id="save-state" class="save-state">${saveStateText()}</span>
+          <span class="quote-number">当前项目：<span class="inline-rename" data-rename-current-project><b id="topbar-project-name">${escapeHtml(project.projectName)}</b><button class="inline-rename-pencil" title="修改项目名称">${pencilIconSvg()}</button></span></span>
         ` : ""}
       </div>
       <div class="topbar-actions">
         ${scope === "editor" ? `
-          <button class="ghost-button" data-back-projects>返回主页</button>
+          <span id="save-state" class="save-state">${saveStateText()}</span>
           <button class="ghost-button" data-save-project>保存报价单</button>
           <button class="ghost-button" data-translate>${translateIconSvg()} ${escapeHtml(getTranslationLabel())}</button>
           <button class="primary-button" data-export-pdf>导出 PDF</button>
@@ -80,46 +80,43 @@ export function bindTopbar() {
   const translate = document.querySelector("[data-translate]");
   if (translate) translate.addEventListener("click", translateQuote);
 
-  const renameEl = document.querySelector("[data-rename-current-project]");
-  if (renameEl) {
-    renameEl.title = "点击修改项目名称";
-    renameEl.addEventListener("click", async () => {
+  const renameWrap = document.querySelector("[data-rename-current-project]");
+  if (renameWrap) {
+    const pencil = renameWrap.querySelector(".inline-rename-pencil");
+    pencil.addEventListener("click", () => {
       const project = state.activeProject;
       if (!project) return;
-      const name = await showContentModal({
-        title: "修改项目名称",
-        className: "project-name-modal",
-        body: `
-          <form class="project-name-form">
-            <label class="field">
-              <span>项目名称</span>
-              <input name="projectName" value="${escapeHtml(project.projectName)}" placeholder="例如：斯里兰卡5T桥机报价">
-            </label>
-            <div class="project-name-actions">
-              <button class="ghost-button" type="button" data-project-skip>清空名称</button>
-              <button class="primary-button" type="submit">保存名称</button>
-            </div>
-          </form>
-        `,
-        onMount(root, close) {
-          const input = root.querySelector("[name='projectName']");
-          input.focus();
-          input.select();
-          root.querySelector("[data-project-skip]").addEventListener("click", () => close(""));
-          root.querySelector("form").addEventListener("submit", (e) => {
-            e.preventDefault();
-            close(input.value.trim());
-          });
-        }
-      });
-      if (name === null) return;
-      await api(`/api/projects/${project.id}`, {
-        method: "PUT",
-        body: { projectName: name }
-      });
-      project.projectName = name;
+      const currentName = project.projectName || "";
       const nameEl = document.getElementById("topbar-project-name");
-      if (nameEl) nameEl.textContent = name;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = currentName;
+      input.className = "inline-rename-input";
+      input.placeholder = "输入项目名称";
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+      pencil.style.display = "none";
+
+      const finish = async (save) => {
+        const newName = save ? input.value.trim() : currentName;
+        input.replaceWith(nameEl);
+        pencil.style.display = "";
+        if (save && newName !== currentName) {
+          nameEl.textContent = newName;
+          await api(`/api/projects/${project.id}`, {
+            method: "PUT",
+            body: { projectName: newName }
+          });
+          project.projectName = newName;
+        }
+      };
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); finish(true); }
+        if (e.key === "Escape") finish(false);
+      });
+      input.addEventListener("blur", () => finish(true));
     });
   }
 }

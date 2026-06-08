@@ -512,8 +512,8 @@ body {
 
 .gallery-1 { grid-template-columns: 1fr; }
 .gallery-2 { grid-template-columns: 1fr 1fr; }
-.gallery-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1.6fr 1fr; }
-.gallery-3 .gallery-span { grid-column: 1 / -1; }
+.gallery-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.gallery-3 .gallery-span { grid-row: 1 / -1; }
 .gallery-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .gallery-5, .gallery-6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
 

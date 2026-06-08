@@ -7,6 +7,11 @@ import { quoteBodyMarkup, normalizeQuoteLayout } from "../quote-template.js";
 import { recordUndoSnapshot } from "../history.js";
 
 let previewRenderFrame = 0;
+let _rerenderSelectedImages;
+
+export function registerPreviewCallbacks({ rerenderSelectedImages }) {
+  _rerenderSelectedImages = rerenderSelectedImages;
+}
 
 export function markDirty() {
   state.dirty = true;
@@ -121,6 +126,42 @@ function bindPreviewDragSorting(preview) {
     });
   });
 
+  /* ---- 画廊图片拖拽排序 ---- */
+  preview.querySelectorAll("[data-preview-gallery-image]").forEach((fig) => {
+    fig.addEventListener("dragstart", (event) => {
+      event.stopPropagation();
+      event.dataTransfer.setData("text/plain", `gallery:${fig.dataset.previewGalleryImage}`);
+      event.dataTransfer.effectAllowed = "move";
+      state.previewDrag = { type: "gallery-image", id: fig.dataset.previewGalleryImage };
+      fig.classList.add("is-dragging");
+    });
+
+    fig.addEventListener("dragend", () => {
+      state.previewDrag = null;
+      fig.classList.remove("is-dragging");
+      preview.querySelectorAll(".is-drop-target").forEach((el) => el.classList.remove("is-drop-target"));
+    });
+
+    fig.addEventListener("dragover", (event) => {
+      if (state.previewDrag?.type !== "gallery-image") return;
+      event.preventDefault();
+      event.stopPropagation();
+      fig.classList.add("is-drop-target");
+    });
+
+    fig.addEventListener("dragleave", () => {
+      fig.classList.remove("is-drop-target");
+    });
+
+    fig.addEventListener("drop", (event) => {
+      if (state.previewDrag?.type !== "gallery-image") return;
+      event.preventDefault();
+      event.stopPropagation();
+      fig.classList.remove("is-drop-target");
+      reorderPreviewGalleryImage(state.previewDrag.id, fig.dataset.previewGalleryImage);
+    });
+  });
+
   preview.querySelectorAll("[data-preview-party]").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
       event.stopPropagation();
@@ -168,4 +209,21 @@ function swapPreviewItems(layoutKey, sourceId, targetId) {
   [items[sourceIndex], items[targetIndex]] = [items[targetIndex], items[sourceIndex]];
   state.previewDrag = null;
   markDirty();
+}
+
+function reorderPreviewGalleryImage(sourceId, targetId) {
+  if (!state.activeProject || sourceId === targetId) return;
+  const ids = [...(state.activeProject.data.selectedImageIds || [])];
+  const sourceIndex = ids.findIndex((id) => String(id) === String(sourceId));
+  const targetIndex = ids.findIndex((id) => String(id) === String(targetId));
+  if (sourceIndex < 0 || targetIndex < 0) return;
+  recordUndoSnapshot();
+  const [item] = ids.splice(sourceIndex, 1);
+  ids.splice(targetIndex, 0, item);
+  state.activeProject.data.selectedImageIds = ids;
+  normalizeGalleryLayout(state.activeProject.data, state.images);
+  state.previewDrag = null;
+  markDirty();
+  // 同步刷新编辑区已选图片列表
+  if (typeof _rerenderSelectedImages === "function") _rerenderSelectedImages();
 }

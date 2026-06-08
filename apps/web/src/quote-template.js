@@ -148,7 +148,8 @@ function galleryGridMarkup(images, options) {
     const src = imageSrc(image);
     if (!src) return "";
     const span = (count === 3 && index === 0) ? ' class="gallery-span"' : '';
-    return `<figure${span}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
+    const figDrag = options.draggable ? ` draggable="true" data-preview-gallery-image="${image.id}"` : "";
+    return `<figure${span}${figDrag}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
   }).filter(Boolean).join("");
 
   const drag = options.draggable ? `draggable="true" data-preview-section="gallery"` : "";

@@ -2,7 +2,7 @@
 
 .preview-panel {
   display: grid;
-  grid-template-rows: 36px 1fr;
+  grid-template-rows: auto 1fr;
   min-width: 0;
   overflow: hidden;
   box-shadow: var(--tight-shadow);
@@ -13,8 +13,7 @@
   align-items: center;
   justify-content: space-between;
   position: relative;
-  height: 38px;
-  padding: 0 22px;
+  padding: 6px 22px;
 }
 
 .preview-tool,

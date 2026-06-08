@@ -218,6 +218,7 @@ function accessoryParamGroupMarkup(itemIndex, paramIndex, param) {
           <div class="param-unit-droplist">
             <button type="button" data-unit-pick="set">set</button>
             <button type="button" data-unit-pick="meter">meter</button>
+            <button type="button" data-unit-pick="pc">pc</button>
           </div>
         </span>
         <button class="accessory-param-remove" type="button" data-remove-accessory-param="${itemIndex}:${paramIndex}" title="删除">×</button>
@@ -816,7 +817,10 @@ function bindEditorFields(container) {
   if (dropTarget) {
     dropTarget.addEventListener("dragover", (e) => {
       e.preventDefault();
-      dropTarget.classList.add("drop-hover");
+      // 仅从图库拖入时显示高亮，内部排序不触发（避免抖动）
+      if (state.draggingLibraryImageId != null) {
+        dropTarget.classList.add("drop-hover");
+      }
     });
     dropTarget.addEventListener("dragleave", () => {
       dropTarget.classList.remove("drop-hover");
@@ -831,27 +835,27 @@ function bindEditorFields(container) {
     });
   }
 
-  container.querySelectorAll("[data-remove-image]").forEach((button) => {
-    button.addEventListener("click", () => removeProjectImage(Number(button.dataset.removeImage)));
-  });
+  bindSelectedImageButtons(container);
 
-  container.querySelectorAll("[data-move-image]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const [id, direction] = button.dataset.moveImage.split(":");
-      moveProjectImage(Number(id), direction);
-    });
-  });
-
-  container.querySelectorAll("[data-selected-image]").forEach((row) => {
-    row.addEventListener("dragstart", () => {
-      state.draggingImageId = Number(row.dataset.selectedImage);
-    });
-    row.addEventListener("dragover", (event) => event.preventDefault());
-    row.addEventListener("drop", () => reorderImageByDrop(Number(row.dataset.selectedImage)));
-  });
+  bindSelectedImageRows(container);
 
   container.querySelectorAll("[data-import-module]").forEach((button) => {
     button.addEventListener("click", () => importModuleText(button.dataset.importModule));
+  });
+}
+
+/** 绑定已选图片行的拖拽事件（供局部刷新复用） */
+function bindSelectedImageRows(container) {
+  container.querySelectorAll("[data-selected-image]").forEach((row) => {
+    row.addEventListener("dragstart", () => {
+      state.draggingImageId = Number(row.dataset.selectedImage);
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+    });
+    row.addEventListener("dragover", (event) => event.preventDefault());
+    row.addEventListener("drop", () => reorderImageByDrop(Number(row.dataset.selectedImage)));
   });
 }
 
@@ -970,6 +974,36 @@ function rerenderCurrentModule() {
   renderModuleEditor();
 }
 
+/** 仅刷新已选图片列表（拖拽排序用，避免整模块重渲染抖动） */
+export function rerenderSelectedImages() {
+  const container = document.querySelector(".selected-images");
+  if (!container) return;
+  const data = state.activeProject.data;
+  const selectedIds = data.selectedImageIds || [];
+  const selectedImages = selectedIds.map((id) => state.images.find((img) => Number(img.id) === Number(id))).filter(Boolean);
+  container.innerHTML = selectedImages.length ? selectedImages.map(selectedImageMarkup).join("") : emptyMarkup("未选择图片");
+  bindSelectedImageRows(container);
+  bindSelectedImageButtons(container);
+  // 同步刷新图库中的选中状态
+  document.querySelectorAll(".choose-image").forEach((btn) => {
+    const id = Number(btn.dataset.toggleImage);
+    btn.classList.toggle("selected", selectedIds.map(Number).includes(id));
+  });
+}
+
+/** 绑定已选图片行的按钮事件（供局部刷新复用） */
+function bindSelectedImageButtons(container) {
+  container.querySelectorAll("[data-remove-image]").forEach((button) => {
+    button.addEventListener("click", () => removeProjectImage(Number(button.dataset.removeImage)));
+  });
+  container.querySelectorAll("[data-move-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [id, direction] = button.dataset.moveImage.split(":");
+      moveProjectImage(Number(id), direction);
+    });
+  });
+}
+
 function buildItemGroups(items) {
   const groups = [];
   let i = 0;
@@ -1081,7 +1115,7 @@ function toggleProjectImage(id) {
   }
   normalizeGalleryLayout(state.activeProject.data, state.images);
   markDirty();
-  rerenderCurrentModule();
+  rerenderSelectedImages();
 }
 
 function removeProjectImage(id) {
@@ -1089,7 +1123,7 @@ function removeProjectImage(id) {
   state.activeProject.data.selectedImageIds = (state.activeProject.data.selectedImageIds || []).filter((imageId) => Number(imageId) !== Number(id));
   normalizeGalleryLayout(state.activeProject.data, state.images);
   markDirty();
-  rerenderCurrentModule();
+  rerenderSelectedImages();
 }
 
 function moveProjectImage(id, direction) {
@@ -1102,7 +1136,7 @@ function moveProjectImage(id, direction) {
   state.activeProject.data.selectedImageIds = ids;
   normalizeGalleryLayout(state.activeProject.data, state.images);
   markDirty();
-  rerenderCurrentModule();
+  rerenderSelectedImages();
 }
 
 function reorderImageByDrop(targetId) {
@@ -1119,7 +1153,7 @@ function reorderImageByDrop(targetId) {
   state.draggingImageId = null;
   normalizeGalleryLayout(state.activeProject.data, state.images);
   markDirty();
-  rerenderCurrentModule();
+  rerenderSelectedImages();
 }
 
 async function importModuleText(moduleId) {

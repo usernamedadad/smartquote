@@ -1,22 +1,72 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { ROOT_DIR, TEMPLATE_DIR } from "./database.mjs";
+import { ROOT_DIR } from "./database.mjs";
 import {
   quoteBodyMarkup, normalizeGalleryLayout, normalizeQuoteItems, escapeHtml
 } from "../../web/src/quote-template.js";
 
-const galleryGridCss = `
-.gallery { display: grid; gap: 8px; width: 100%; height: 480px; }
-.gallery figure { margin: 0; overflow: hidden; border-radius: 6px; background: #fff; }
-.gallery-1 { grid-template-columns: 1fr; }
-.gallery-2 { grid-template-columns: 1fr 1fr; }
-.gallery-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1.6fr 1fr; }
-.gallery-3 .gallery-span { grid-column: 1 / -1; }
-.gallery-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.gallery-5, .gallery-6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.gallery img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center center; }
+const WEB_CSS_DIR = path.join(ROOT_DIR, "apps", "web", "src", "css");
+
+function quoteExportCss() {
+  const layoutCss = readFileSync(path.join(WEB_CSS_DIR, "quote-sheet-layout.css"), "utf8");
+  const contentCss = readFileSync(path.join(WEB_CSS_DIR, "quote-sheet-content.css"), "utf8");
+
+  return `
+:root {
+  --orange: #df5a29;
+  --navy: #313541;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 1024px;
+  min-height: 100%;
+  background: #ffffff;
+}
+
+body {
+  color: #0e0f12;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.sheet.quote-sheet {
+  margin: 0;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  box-shadow: none;
+}
+
+${layoutCss}
+${contentCss}
+
+@page {
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 1024px;
+    height: auto;
+  }
+
+  .sheet.quote-sheet {
+    margin: 0;
+    height: auto;
+    overflow: visible;
+  }
+}
 `;
+}
 
 function dataUriFor(storagePath, mimeType = "image/png") {
   const absolutePath = path.join(ROOT_DIR, storagePath);
@@ -32,7 +82,7 @@ export function renderQuoteHtml(project, images = []) {
   normalizeQuoteItems(renderData);
   normalizeGalleryLayout(renderData, images);
   const logoSrc = dataUriFor(path.join("templates", "logo.png"), "image/png");
-  const css = readFileSync(path.join(TEMPLATE_DIR, "style.css"), "utf8");
+  const css = quoteExportCss();
 
   const body = quoteBodyMarkup(renderData, images, "", {
     imageSrc: (image) => dataUriFor(image.storagePath, image.mimeType),
@@ -61,42 +111,11 @@ export function renderQuoteHtml(project, images = []) {
   <title>${escapeHtml(data.quoteMeta?.quoteNo || "Quotation")}</title>
   <style>
 ${css}
-@page { margin: 0; }
-@media print {
-  html, body { width: 1024px; height: auto; }
-  .sheet { margin: 0; height: auto; }
-}
-.sheet { min-height: 0; height: auto; padding-bottom: 24px; overflow: visible; }
-.footer { position: static !important; left: auto !important; right: auto !important; bottom: auto !important; margin-top: 22px; }
-.product-row td { height: 238px; }
-.accessory-row td { height: auto; padding: 4px 10px; }
-.accessory-row td:nth-child(2) { padding-top: 6px; padding-bottom: 2px; }
-.accessory-row h3 { margin-bottom: 0; }
-.accessory-row td:first-child { vertical-align: middle; }
-.accessory-detail-row td { height: auto; padding: 1px 0; font-size: 14px; text-align: center; }
-.accessory-detail-row td:nth-child(1) { padding: 1px 26px; text-align: left; }
-.product-row td:nth-child(5) { padding-left: 20px; text-align: left; }
-.accessory-detail-row td:nth-child(4) { padding-left: 20px; text-align: left; }
-.summary-line { grid-template-columns: 1fr 147px; min-height: 28px; height: auto; }
-.summary-line span { text-align: center; }
-.summary-line strong { padding-left: 20px; text-align: left; }
-.terms-box { min-height: 210px; height: auto; overflow: visible; }
-.meta-row { grid-template-columns: auto 1fr; min-height: 44px; height: auto; }
-.pricing-table thead th { min-height: 38px; height: auto; }
-.footer-text { gap: 30px; min-height: 45px; height: auto; }
-${galleryGridCss}
-.party-grid { margin-top: 20px; }
-.pricing-section { margin-top: 20px; }
-.hero-title + .party-grid,
-.hero-title + .pricing-section,
-.hero-title + .gallery-section,
-.hero-title + .terms-section,
-.hero-title + .footer { margin-top: 58px; }
 ${rtlCss}
   </style>
 </head>
 <body>
-  <main class="sheet"${dir} aria-label="Quotation sheet">${body}</main>
+  <main class="sheet quote-sheet"${dir} aria-label="Quotation sheet">${body}</main>
 </body>`;
 }
 
@@ -113,25 +132,39 @@ export async function exportPdf(project, images) {
 
   try {
     const page = await browser.newPage({ viewport: { width: 1024, height: 1536 }, deviceScaleFactor: 1 });
+    await page.emulateMedia({ media: "screen" });
     await page.setContent(html, { waitUntil: "networkidle" });
+    await waitForAssets(page);
     const contentHeight = await measureContentHeight(page);
-    const targetHeight = 1536;
-    const pdfScale = Math.min(1, targetHeight / contentHeight);
+    const targetHeight = Math.max(1536, contentHeight);
     return await page.pdf({
       width: "1024px",
       height: `${targetHeight}px`,
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      scale: pdfScale
+      scale: 1
     });
   } finally {
     await browser.close();
   }
 }
 
+async function waitForAssets(page) {
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+    await Promise.all([...document.images].map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      });
+    }));
+  });
+}
+
 async function measureContentHeight(page) {
   return await page.evaluate(() => {
-    const sheet = document.querySelector(".sheet");
+    const sheet = document.querySelector(".quote-sheet");
     if (!sheet) return 1536;
 
     sheet.style.width = "1024px";
