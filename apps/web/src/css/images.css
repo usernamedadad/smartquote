@@ -1,0 +1,176 @@
+/* === 图片模块 + 产品卡片 === */
+
+.product-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 1px 2px 12px;
+  margin-bottom: 8px;
+}
+
+.product-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: 72px 34px 24px;
+  gap: 6px;
+  min-height: 154px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(35, 50, 80, 0.04);
+}
+
+.product-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29, 102, 255, 0.12);
+}
+
+.product-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.product-card.active .product-check {
+  display: grid;
+}
+
+.product-thumb {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.product-thumb img {
+  width: 100%;
+  height: 72px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.product-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #172033;
+  font-size: 11.5px;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.product-card small {
+  display: block;
+  overflow: hidden;
+  color: #8791a3;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-card.active small {
+  color: var(--accent);
+}
+
+.parameter-list {
+  display: grid;
+}
+
+.image-editor {
+  display: grid;
+  gap: 18px;
+}
+
+.inserted-image-panel,
+.image-library-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.selected-images,
+.image-editor .choose-grid {
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.selected-images::-webkit-scrollbar,
+.image-editor .choose-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.selected-images {
+  display: grid;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.selected-images.drop-hover {
+  background: #edf4ff;
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.selected-image-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 34px 34px 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.selected-image-row img {
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.choose-image {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.choose-image.selected {
+  border-color: var(--accent);
+  background: #edf4ff;
+}
+
+.choose-image img {
+  width: 100%;
+  aspect-ratio: 1.28;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.choose-image span {
+  overflow: hidden;
+  color: #30384a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-editor .choose-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}

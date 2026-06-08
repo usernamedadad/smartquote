@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1024, initial-scale=1">
+  <title>ZK Hoist Quotation</title>
+  <link rel="stylesheet" href="style.css?v=20260603-pricing-weight">
+</head>
+<body>
+  <main class="sheet" aria-label="Quotation sheet">
+    <header class="topbar">
+      <img class="brand-logo" src="logo.png" alt="ZK Hoist">
+
+      <dl class="quote-meta" aria-label="Quote information">
+        <div class="meta-row">
+          <dt>Quote No.</dt>
+          <dd>ZH052726K1V1</dd>
+        </div>
+        <div class="meta-row">
+          <dt>Date</dt>
+          <dd>May 29, 2026</dd>
+        </div>
+        <div class="meta-row">
+          <dt>Validity</dt>
+          <dd>10 days</dd>
+        </div>
+      </dl>
+    </header>
+
+    <section class="hero-title" aria-label="Quotation title">
+      <div class="title-ribbon title-ribbon-large">
+        <span>QUOTATION</span>
+      </div>
+    </section>
+
+    <section class="party-grid" aria-label="Company and customer information">
+      <article class="party-card party-from">
+        <div class="party-label">
+          <span>FROM</span>
+          <i></i>
+        </div>
+        <h2>Henan Zoke Crane Co., Ltd.</h2>
+        <div class="party-lines">
+          <span>Name:</span>
+          <strong>Krystal</strong>
+          <span>WhatsApp:</span>
+          <strong>+86 16609015589</strong>
+          <span>Email:</span>
+          <strong>krystal@zkhoist.com</strong>
+        </div>
+      </article>
+
+      <article class="party-card party-to">
+        <div class="party-label">
+          <span>TO</span>
+          <i></i>
+        </div>
+        <h2>Rajitha Sampath</h2>
+        <div class="party-lines">
+          <span>Name:</span>
+          <strong>Rajitha Sampath</strong>
+          <span>WhatsApp:</span>
+          <strong>+94778790404</strong>
+          <span>Email:</span>
+          <strong>inforajitha@gmail.com</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="pricing-section" aria-label="Product and pricing">
+      <div class="title-ribbon title-ribbon-small">
+        <span>PRODUCT &amp; PRICING</span>
+      </div>
+
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Product Specifications</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="product-row">
+            <td>1.</td>
+            <td>
+              <h3>LD 3t-6.4m-4m</h3>
+              <p>- Lifting speed: 5.4(m/min)</p>
+              <p>- Trolley travel speed: 11 (m/min)</p>
+              <p>- Crane travel speed: 20 (m/min)</p>
+              <p>- Voltage: 400V/ 3 Phase/ 50Hz</p>
+              <p>- Work duty: A3</p>
+              <p>- Control method: Pendant Control</p>
+              <p>- Lifting height limiter included</p>
+            </td>
+            <td>1 set</td>
+            <td>$2,478/set</td>
+            <td>$2,478</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="4">TOTAL</td>
+            <td>$2,478</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="terms-section" aria-label="Terms and conditions">
+      <div class="title-ribbon title-ribbon-small">
+        <span>TERMS &amp; CONDITIONS</span>
+      </div>
+
+      <div class="terms-box">
+        <h3>SHIPMENT TERM:</h3>
+        <p>EXW Changyuan, Xinxiang City, Henan Province, China.</p>
+
+        <h3>PAYMENT TERM:</h3>
+        <p>T/T: 40% deposit on order, balance before shipment.</p>
+
+        <h3>LEAD TIME:</h3>
+        <p>25 workdays after receipt of deposit.</p>
+
+        <h3>PACKAGE:</h3>
+        <p>All crane bodies are packed in waterproof cloth.</p>
+        <p>Accessories and electrical components are packed in strong plywood crate.</p>
+      </div>
+    </section>
+
+    <section class="gallery-section" aria-label="Product images">
+      <div class="gallery" id="product-gallery"></div>
+    </section>
+
+    <div class="footer">
+      <div class="footer-line"></div>
+      <div class="footer-text">
+        <span>Henan Zoke Crane Co., Ltd.</span>
+        <b>|</b>
+        <span>www.zkhoist.com</span>
+        <b>|</b>
+        <span>krystal@zkhoist.com</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const gallery = document.getElementById("product-gallery");
+    const figure = document.createElement("figure");
+    figure.className = "gallery-main";
+    const img = document.createElement("img");
+    img.src = "image4.png";
+    img.alt = "Hoist product main preview";
+    img.loading = "eager";
+    figure.appendChild(img);
+    gallery.appendChild(figure);
+  </script>
+</body>
+</html>

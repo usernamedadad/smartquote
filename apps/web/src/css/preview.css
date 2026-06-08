@@ -1,0 +1,102 @@
+/* === 预览面板 === */
+
+.preview-panel {
+  display: grid;
+  grid-template-rows: 36px 1fr;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: var(--tight-shadow);
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  height: 38px;
+  padding: 0 22px;
+}
+
+.preview-tool,
+.preview-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 1px solid #e2e8f2;
+  background: #fff;
+  color: #172033;
+  box-shadow: 0 2px 8px rgba(26, 42, 70, 0.06);
+}
+
+.preview-tool {
+  width: 38px;
+  border-radius: 6px;
+}
+
+.preview-tool:hover {
+  background: #f7f9fc;
+  color: var(--accent);
+}
+
+.preview-zoom-group {
+  gap: 0;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.preview-zoom-group .preview-tool {
+  width: 36px;
+  height: 32px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.preview-zoom-group strong {
+  min-width: 66px;
+  color: #1f2735;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.preview-tool svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.preview-scroll {
+  overflow: auto;
+  padding: 0 26px 34px;
+  background: #fff;
+  scrollbar-color: #8d8f94 #f0f2f6;
+  scrollbar-width: thin;
+}
+
+.preview-stage {
+  position: relative;
+  margin: 0 auto;
+  transform-origin: top left;
+}
+
+#quote-preview {
+  width: 1024px;
+  min-height: 0;
+  transform-origin: top left;
+}
+
+.empty-state {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  border: 1px dashed #b8c3d7;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: var(--muted);
+}

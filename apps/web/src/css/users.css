@@ -1,0 +1,112 @@
+/* === 用户管理页 === */
+
+.user-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 18px;
+  height: calc(100vh - 58px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+.user-page .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.user-page .section-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.user-table {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.user-table::-webkit-scrollbar {
+  display: none;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 100px 140px 220px;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.user-info {
+  display: grid;
+  gap: 2px;
+}
+
+.user-info strong {
+  font-size: 15px;
+}
+
+.user-info span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.user-role {
+  display: inline-flex;
+  justify-content: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 26px;
+}
+
+.user-role.admin {
+  background: #edf4ff;
+  color: var(--accent);
+}
+
+.user-role.sales {
+  background: #edf8ee;
+  color: var(--green);
+}
+
+.user-time {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.user-self-badge {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-form .field + .field {
+  margin-top: 4px;
+}
+
+.user-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--white);
+}
+
+.creator-badge {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}

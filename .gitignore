@@ -1,0 +1,15 @@
+node_modules/
+storage/
+!storage/.gitkeep
+uploads/images/*
+!uploads/images/.gitkeep
+*.log
+.claude/
+1.md
+issue-solution.md
+task.md
+web.png
+web2.png
+web3.png
+web4.png
+docs/

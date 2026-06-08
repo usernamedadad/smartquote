@@ -1,0 +1,13 @@
+{
+  "name": "smartquote-editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --no-warnings apps/server/src/server.mjs",
+    "dev": "node --watch --no-warnings apps/server/src/server.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

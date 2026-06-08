@@ -1,0 +1,92 @@
+[
+    {
+        "cn_name": "欧式葫芦",
+        "en_name": "ZE Wire Rope Hoist",
+        "parameters": {
+            "Lifting capacity": "3 t",
+            "Lifting height": "6 m",
+            "Lifting speed": "5/0.8 (m/min)",
+            "Trolley travel speed": "5-20 (m/min)",
+            "Voltage": "380V/3 Phase/60Hz",
+            "Work duty": "FEM 2m (ISO M5)",
+            "Control method": "Pendant + Remote Control",
+            "VFD": "Schneider",
+            "Main Electrical components": "Schneider",
+            "Load limiter and lifting height limiter included": true
+        }
+    },
+    {
+        "cn_name": "CD葫芦",
+        "en_name": "CD Electric Wire Rope Hoist",
+        "parameters": {
+            "Lifting capacity": "3 t",
+            "Lifting height": "6 m",
+            "Lifting speed": "8 (m/min)",
+            "Trolley travel speed": "20 (m/min)",
+            "Voltage": "380V/3 Phase/50Hz",
+            "Work duty": "M3",
+            "Control method": "Pendant + Remote Control",
+            "Load limiter and lifting height limiter included": true
+        }
+    },
+    {
+        "cn_name": "环链葫芦-运行式",
+        "en_name": "Electric Chain Hoist with Trolley",
+        "parameters": {
+            "Lifting capacity": "3 t",
+            "Lifting height": "6 m",
+            "Voltage": "380V/3 Phase/50Hz",
+            "Lifting speed": "5.4 (m/min)",
+            "Trolley travel speed": "11 (m/min)",
+            "Work duty": "M3",
+            "Control method": "Pendant + Remote Control",
+            "Lifting height limiter included": true
+        }
+    },
+    {
+        "cn_name": "环链葫芦-固定式",
+        "en_name": "Fixed Type Electric Chain Hoist",
+        "parameters": {
+            "Lifting capacity": "3 t",
+            "Lifting height": "6 m",
+            "Power supply": "380V/3 Phase/50Hz",
+            "Lifting speed": "5.4 (m/min)",
+            "Work duty": "M3",
+            "Control method": "Pendant + Remote Control",
+            "Lifting height limiter included": true
+        }
+    },
+    {
+        "cn_name": "欧式单梁桥机",
+        "en_name": "HD 5T-S15m-H9m",
+        "parameters": {
+            "Lifting speed": "5/0.8(m/min)",
+            "Trolley travel speed": "5-20 (m/min)",
+            "Crane travel speed": "3-30 (m/min)",
+            "Voltage": "380V/3 Phase/50Hz",
+            "Work duty": "A5",
+            "Control method": "Pendant + Remote control",
+            "Load limiter and lifting height limiter included": true,
+            "VFD": "Schneider",
+            "Main Electrical components": "Schneider"
+        }
+    },
+    {
+        "cn_name": "桥机＋支撑结构",
+        "en_name": "HD 5T-S15m-H9m",
+        "parameters": {
+            "Lifting speed": "5/0.8(m/min)",
+            "Trolley travel speed": "5-20 (m/min)",
+            "Crane travel speed": "3-30 (m/min)",
+            "Voltage": "380V/3 Phase/50Hz",
+            "Work duty": "A5",
+            "Control method": "Pendant + Remote control",
+            "Load limiter and lifting height limiter included": true,
+            "VFD": "Schneider",
+            "Main Electrical components": "Schneider",
+            "Conductor Bar System": "4P 10 mm²",
+            "Crane Rails": true,
+            "Steel Structure Parts": ["Connecting beam", "Runway beam", "Column", "Support between columns"]
+        }
+    }
+]

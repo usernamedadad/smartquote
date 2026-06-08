@@ -1,0 +1,157 @@
+/* === 基础：变量、Reset、输入框、按钮 === */
+
+:root {
+  --bg: #eef3f8;
+  --panel: #ffffff;
+  --ink: #151922;
+  --muted: #697386;
+  --line: #dbe3ef;
+  --soft: #f7f9fc;
+  --accent: #1d66ff;
+  --accent-strong: #0f4fd8;
+  --orange: #df5a29;
+  --navy: #313541;
+  --green: #1f9b58;
+  --danger: #d83434;
+  --shadow: 0 10px 28px rgba(38, 55, 88, 0.08);
+  --tight-shadow: 0 3px 12px rgba(39, 58, 94, 0.06);
+  color-scheme: light;
+  font-family: "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1440px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0;
+  line-height: 1.45;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.field,
+.field-row,
+.login-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.field span,
+.field-row span,
+.login-form span {
+  color: #30384a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+input {
+  height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+textarea {
+  min-height: 110px;
+  padding: 12px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29, 102, 255, 0.12);
+}
+
+.primary-button,
+.ghost-button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-weight: 700;
+}
+
+.primary-button {
+  height: 40px;
+  padding: 0 18px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(29, 102, 255, 0.22);
+}
+
+.primary-button:hover {
+  background: var(--accent-strong);
+}
+
+.ghost-button {
+  height: 36px;
+  padding: 0 14px;
+  gap: 6px;
+  border-color: var(--line);
+  background: #fff;
+  color: #22304a;
+}
+
+.ghost-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border-color: var(--line);
+  background: #fff;
+  color: #243044;
+}
+
+.icon-button.danger {
+  color: var(--danger);
+}
+
+.form-error {
+  min-height: 18px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
