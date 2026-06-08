@@ -178,6 +178,20 @@ export function renderLoginPage() {
     '#login-form input[name="password"]'
   );
 
+  // 读取记住的账号
+  const remembered = localStorage.getItem("smartquote_username");
+  if (remembered) {
+    usernameInput.value = remembered;
+    document.querySelector('.login-form input[name="remember"]').checked = true;
+    // 切换到对应角色的 tab
+    const role = localStorage.getItem("smartquote_role") || "admin";
+    document.querySelectorAll(".login-role-card").forEach((c) => {
+      const isTarget = c.dataset.role === role;
+      c.classList.toggle("active", isTarget);
+      c.setAttribute("aria-selected", String(isTarget));
+    });
+  }
+
   // 角色选择：切换身份并预填账号
   document.querySelectorAll(".login-role-card").forEach((card) => {
     card.addEventListener("click", () => {
@@ -220,12 +234,22 @@ export function renderLoginPage() {
       try {
         const result = await api("/api/login", {
           method: "POST",
+          allow401: true,
           body: {
             username: form.get("username"),
             password: form.get("password"),
           },
         });
         state.user = result.user;
+        // 记住账号
+        const remember = form.get("remember");
+        if (remember) {
+          localStorage.setItem("smartquote_username", form.get("username"));
+          localStorage.setItem("smartquote_role", result.user.role || "sales");
+        } else {
+          localStorage.removeItem("smartquote_username");
+          localStorage.removeItem("smartquote_role");
+        }
         await loadWorkspace();
         _renderProjectsPage();
       } catch (err) {

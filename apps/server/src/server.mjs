@@ -90,8 +90,12 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const user = findUserByUsername(body.username);
 
-    if (!user || user.password_hash !== hashPassword(body.password || "", user.salt)) {
-      sendJson(res, 401, { error: "用户名或密码不正确" });
+    if (!user) {
+      sendJson(res, 401, { error: "用户名不存在" });
+      return;
+    }
+    if (user.password_hash !== hashPassword(body.password || "", user.salt)) {
+      sendJson(res, 401, { error: "密码错误" });
       return;
     }
 

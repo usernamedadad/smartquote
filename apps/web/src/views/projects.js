@@ -43,7 +43,10 @@ export function renderProjectsPage() {
           ${state.user?.role === "admin" ? homeNavButton("users", "系统设置", "footer") : homeNavButton("profile", "个人中心", "customer")}
         </nav>
         <div class="home-sidebar-bottom">
-          <button class="home-logout-link" type="button" data-home-logout>退出登录</button>
+          <button class="home-logout-btn" type="button" data-home-logout>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            退出登录
+          </button>
         </div>
       </aside>
 
@@ -207,24 +210,29 @@ function projectsDashboardMarkup() {
       <div class="project-list-table">
         ${filtered.length ? `
           <div class="project-list-header">
+            ${manageMode ? '<span></span>' : ''}
             <span>编号</span><span>项目名称</span><span>更新时间</span><span>操作</span>
           </div>
-          ${filtered.map(projectListRowMarkup).join("")}
+          ${filtered.map(p => projectListRowMarkup(p, manageMode)).join("")}
         ` : emptyMarkup("没有匹配的报价项目")}
       </div>
     `}
   `;
 }
 
-function projectListRowMarkup(project) {
+function projectListRowMarkup(project, manageMode = false) {
+  const selected = (state.selectedProjectIds || []).includes(project.id);
   return `
-    <div class="project-list-row">
+    <div class="project-list-row${manageMode ? " manage-mode" : ""}${selected ? " selected" : ""}" ${manageMode ? `data-toggle-select="${project.id}"` : ""}>
+      ${manageMode ? `<span class="list-row-check">${selected ? "✓" : ""}</span>` : ""}
       <span class="list-row-no">${escapeHtml(project.data?.quoteMeta?.quoteNo || "-")}</span>
-      <button class="list-row-name" data-open-project="${project.id}">${escapeHtml(project.projectName)}</button>
+      <button class="list-row-name" data-open-project="${manageMode ? "" : project.id}">${escapeHtml(project.projectName)}</button>
       <span class="list-row-time">${formatTime(project.updatedAt || project.createdAt)}</span>
       <div class="list-row-actions">
-        <button data-rename-project="${project.id}">重命名</button>
-        <button data-delete-project="${project.id}">删除</button>
+        ${!manageMode ? `
+          <button data-rename-project="${project.id}">重命名</button>
+          <button data-delete-project="${project.id}">删除</button>
+        ` : ""}
       </div>
     </div>
   `;
