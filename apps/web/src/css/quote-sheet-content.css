@@ -41,11 +41,11 @@
 }
 
 .quote-sheet .pricing-table th:nth-child(1) {
-  width: 52px;
+  width: 110px;
 }
 
 .quote-sheet .pricing-table th:nth-child(2) {
-  width: 470px;
+  width: 412px;
   padding-left: 26px;
   text-align: left;
 }

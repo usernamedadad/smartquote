@@ -16,14 +16,16 @@ let _selectProduct;
 let _switchToModule;
 let _removeQuoteItem;
 let _refreshEditor;
+let _syncSectionFromPreview;
 
-export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor }) {
+export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor, syncSectionFromPreview }) {
   _rerenderSelectedImages = rerenderSelectedImages;
   _addAccessory = addAccessory;
   _selectProduct = selectProduct;
   _removeQuoteItem = removeQuoteItem;
   _switchToModule = switchToModule;
   _refreshEditor = refreshEditor;
+  _syncSectionFromPreview = syncSectionFromPreview;
 }
 
 export function markDirty() {
@@ -36,6 +38,16 @@ export function markDirty() {
   const projectName = document.querySelector("#topbar-project-name");
   if (projectName) projectName.textContent = state.activeProject?.projectName || "";
   scheduleQuotePreviewRender();
+}
+
+/** 延迟刷新编辑器：blur 后检查焦点是否移到另一个预览输入框，避免连续点击失效 */
+function deferredRefreshEditor() {
+  requestAnimationFrame(() => {
+    const active = document.activeElement;
+    /* 焦点仍在预览区输入框 → 跳过刷新，避免吃掉 click */
+    if (active && active.closest("#quote-preview") && active.matches("input, textarea")) return;
+    if (_refreshEditor) _refreshEditor();
+  });
 }
 
 /** 更新 dirty 标记但不触发预览重渲染（用于预览区内联编辑） */
@@ -410,6 +422,11 @@ function bindSectionClickNavigation(preview) {
   preview.querySelectorAll("[data-preview-party]").forEach((card) => {
     card.addEventListener("click", (event) => {
       if (event.target.closest("input")) return;
+      /* 全屏模式：仅联动命令栏，不触发 renderEditorPage */
+      if (state.previewFullscreen) {
+        if (_syncSectionFromPreview) _syncSectionFromPreview("parties");
+        return;
+      }
       const moduleId = PARTY_TO_MODULE[card.dataset.previewParty];
       if (moduleId) _switchToModule(moduleId);
     });
@@ -423,6 +440,11 @@ function bindSectionClickNavigation(preview) {
       if (event.target.closest("button")) return;
       if (event.target.closest("input")) return;
       const sectionId = section.dataset.previewSection;
+      /* 全屏模式：仅联动命令栏 */
+      if (state.previewFullscreen) {
+        if (_syncSectionFromPreview) _syncSectionFromPreview(sectionId);
+        return;
+      }
       const moduleId = SECTION_TO_MODULE[sectionId];
       if (moduleId) _switchToModule(moduleId);
     });
@@ -434,6 +456,11 @@ function bindSectionClickNavigation(preview) {
     row.addEventListener("click", (event) => {
       if (event.target.closest("button")) return;
       if (event.target.closest("input")) return;
+      /* 全屏模式：仅联动命令栏 */
+      if (state.previewFullscreen) {
+        if (_syncSectionFromPreview) _syncSectionFromPreview("pricing");
+        return;
+      }
       const itemIndex = Number(row.dataset.previewItem);
       _switchToModule("parameters", itemIndex);
     });
@@ -471,7 +498,7 @@ function bindPreviewInlineEditing(preview) {
       if (wrap) wrap.firstChild.textContent = display;
       quietDirty();
     });
-    dateInput.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    dateInput.addEventListener("blur", deferredRefreshEditor);
     dateInput.addEventListener("click", (e) => e.stopPropagation());
   }
 
@@ -485,7 +512,7 @@ function bindPreviewInlineEditing(preview) {
       item.parameters[key] = input.value;
       quietDirty();
     });
-    input.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    input.addEventListener("blur", deferredRefreshEditor);
     input.addEventListener("click", (e) => e.stopPropagation());
   });
 
@@ -530,7 +557,7 @@ function bindPreviewInlineEditing(preview) {
       if (item.product) item.product.enName = input.value;
       quietDirty();
     });
-    input.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    input.addEventListener("blur", deferredRefreshEditor);
     input.addEventListener("click", (e) => e.stopPropagation());
   });
 
@@ -545,7 +572,7 @@ function bindPreviewInlineEditing(preview) {
       if (param) param.name = el.value;
       quietDirty();
     });
-    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("blur", deferredRefreshEditor);
     el.addEventListener("click", (e) => e.stopPropagation());
   });
 
@@ -570,7 +597,7 @@ function bindPreviewInlineEditing(preview) {
       updateSummaryCells(preview);
       quietDirty();
     });
-    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("blur", deferredRefreshEditor);
     el.addEventListener("click", (e) => e.stopPropagation());
   });
 
@@ -593,7 +620,7 @@ function bindPreviewInlineEditing(preview) {
       updateSummaryCells(preview);
       quietDirty();
     });
-    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("blur", deferredRefreshEditor);
     el.addEventListener("click", (e) => e.stopPropagation());
   });
 
@@ -609,7 +636,7 @@ function bindPreviewInlineEditing(preview) {
       param.unit = el.value.trim();
       quietDirty();
     });
-    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("blur", deferredRefreshEditor);
     el.addEventListener("click", (e) => e.stopPropagation());
   });
 

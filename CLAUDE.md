@@ -39,15 +39,16 @@ apps/web/src/
   translate.js        # 翻译功能（语言列表、文本提取/回填、语言选择弹窗、翻译流程编排）
   topbar.js           # 顶栏 HTML + 事件绑定（projects 和 editor 共用，不含撤销/重做）
   views/
-    login.js          # 登录页渲染
-    projects.js       # 项目列表页渲染（含项目命名弹窗、admin 用户管理入口）
-    profile.js        # 个人中心页（头像banner/联系方式编辑/密码修改）
-    users.js          # 用户管理页渲染（仅 admin 可见）
-    editor.js         # 编辑器外壳（三栏布局/侧栏/模块切换/预览控制/撤销重做/项目切换面板）
-    editor-modules.js # 8 个模块表单 + bindEditorFields + 产品/图片操作
-    preview.js        # 报价预览缩放/拖拽/markDirty（模板由 quote-template.js 生成）
+    login.js              # 登录页渲染
+    projects.js           # 项目列表页渲染（含项目命名弹窗、admin 用户管理入口）
+    profile.js            # 个人中心页（头像banner/联系方式编辑/密码修改）
+    users.js              # 用户管理页渲染（仅 admin 可见）
+    editor.js             # 编辑器外壳（三栏布局/侧栏/模块切换/预览控制/撤销重做/项目切换面板）
+    editor-modules.js     # 8 个模块表单 + bindEditorFields + 产品/图片操作
+    fullscreen-editor.js  # 全屏 Pro 编辑模式（命令栏 + 暗色上下文卡片 + Scroll Spy + 键盘快捷键 + 产品快捷操作）
+    preview.js            # 报价预览缩放/拖拽/markDirty（模板由 quote-template.js 生成）
   styles.css          # CSS 入口（@import 清单）
-  css/                # 按业务拆分的 CSS 子文件
+  css/                # 按业务拆分的 CSS 子文件（含 fullscreen-editor.css）
   product-previews/   # 6 种产品缩略图（SVG + PNG）
 data/
   products.json       # 6 种产品目录及参数模板
@@ -75,6 +76,7 @@ views/profile.js       ← state, api, utils, ui（由 projects.js import）
 views/users.js         ← state, api, utils, topbar, ui
 views/editor.js        ← state, utils, icons, topbar, preview, editor-modules, quote-template, history, api
 views/editor-modules.js ← state, utils, icons, ui, bulk-import, preview, projects
+views/fullscreen-editor.js ← state, utils, history, preview, api, ui, editor-modules（main.js 导入 syncSectionFromPreview）
 
 renderQuote.mjs ← quote-template, database     ← 服务端也导入 quote-template
 
@@ -189,6 +191,15 @@ main.js ← 以上所有（顶层编排，无人导入它）
   - **`_refreshEditor` 回调**：通过 `registerPreviewCallbacks` 注入 `renderEditorPage`，预览区编辑失焦后刷新编辑区面板
   - **`normalizeAccessoryParameters`** 保留 `_new` 标记：`...(p._new ? { _new: true } : {})`，防止规范化时丢失
   - CSS 统一用 `pe-` 前缀（preview-edit），属性用 `data-edit-` 前缀。样式在 `css/preview.css`
+- **全屏 Pro 编辑模式**（`views/fullscreen-editor.js`）：预览工具栏的全屏按钮触发，将预览面板进入 Fullscreen API，底部叠加命令栏（`fse-bar`）+ 右侧暗色上下文编辑卡片（`fse-card`）+ 顶部迷你工具栏（`fse-mini-toolbar`，替换原工具栏的撤销/重做/缩放/适配）。6 个 section（Info/Parties/Products/Pricing/Terms/Footer）通过药丸切换，卡片内容动态渲染对应表单。输入防抖 200ms 后仅刷新预览（`quietDirty()`），blur 时 `markDirty()` 同步
+  - **Scroll Spy**：监听预览滚动，自动检测当前可见 section 并更新命令栏药丸高亮（反向联动）
+  - **键盘快捷键**：`1-6` 切换 section、`Ctrl+S` 保存、`↑↓` 在 Products 中切换高亮产品、`ESC` 退出全屏
+  - **字段↔预览高亮**：卡片中 hover 带有 `data-fse-highlight-path` 的字段时，预览对应元素添加 `fse-preview-highlight` 脉冲动画（CSS `@keyframes fse-pulse`）
+  - **产品快捷操作**：hover 产品卡片显示上移/下移/复制/删除按钮（`data-fse-move-up/down/duplicate/delete`），操作后仅 `refreshCardBody()` + `markDirty()`，不触发全量重渲染
+  - **中英文切换**：命令栏右侧语言按钮切换所有 UI 标签（`LABELS` 对象维护 en/zh 双语）
+  - **防全渲染**：全屏模式下所有操作（编辑/添加/删除/移动）只调 `refreshCardBody()` + `scheduleDebouncedRender()` / `markDirty()`，不调用 `renderEditorPage()`。预览区 section/party/item 点击时检查 `state.previewFullscreen`，仅调 `syncSectionFromPreview()` 联动命令栏。退出全屏只允许 ESC（全屏按钮不再触发 `exitFullscreen`）
+  - **清理**：`cleanupFullscreenPro()` 在退出全屏时移除 scroll spy 监听、键盘监听、高亮状态，恢复原工具栏。`editor.js` 的 `fullscreenchange` 处理器负责 DOM 清理和 `renderEditorPage()` 重建
+  - 样式在 `css/fullscreen-editor.css`，使用 `fse-` 前缀，暗色主题（卡片 `#252d3e`，深色背景 `#1e2536`）
 
 ### Common Development Patterns
 

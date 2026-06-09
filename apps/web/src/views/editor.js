@@ -8,6 +8,7 @@ import { topbarMarkup, bindTopbar } from "../topbar.js";
 
 import { renderQuotePreview, setPreviewZoom, fitPreviewToPanel } from "./preview.js";
 import { renderModuleEditor } from "./editor-modules.js";
+import { enterFullscreenPro, cleanupFullscreenPro } from "./fullscreen-editor.js";
 import { quoteBodyMarkup, normalizeQuoteLayout, normalizeQuoteItems, normalizeGalleryLayout } from "../quote-template.js";
 import { undoLastChange, restoreOriginalProjectData } from "../history.js";
 import { api } from "../api.js";
@@ -140,10 +141,28 @@ function bindPreviewControls() {
   document.querySelector("[data-preview-zoom-out]")?.addEventListener("click", () => setPreviewZoom(state.zoom - 0.05));
   document.querySelector("[data-preview-zoom-in]")?.addEventListener("click", () => setPreviewZoom(state.zoom + 0.05));
   document.querySelector("[data-preview-fullscreen]")?.addEventListener("click", () => {
-    const panel = document.querySelector(".preview-panel");
-    if (!panel) return;
-    if (document.fullscreenElement) document.exitFullscreen();
-    else panel.requestFullscreen?.();
+    if (!document.fullscreenElement) {
+      enterFullscreenPro();
+    }
+  });
+
+  /* 全屏状态追踪：进入时打开编辑卡片并自适应，退出时同步编辑区 */
+  document.addEventListener("fullscreenchange", () => {
+    const inFullscreen = !!document.fullscreenElement;
+    state.previewFullscreen = inFullscreen;
+    if (inFullscreen) {
+      const scroll = document.querySelector(".preview-scroll");
+      if (scroll) scroll.classList.add("fse-scroll-margin");
+      requestAnimationFrame(() => fitPreviewToPanel());
+    } else {
+      /* 清理全屏 Pro 资源 */
+      cleanupFullscreenPro();
+      /* 清除全屏 Pro 元素 */
+      document.querySelectorAll(".fse-bar, .fse-card, .fse-toggle, .fse-picker-overlay, .fse-mini-toolbar").forEach((el) => el.remove());
+      const scroll = document.querySelector(".preview-scroll");
+      if (scroll) scroll.classList.remove("fse-scroll-margin");
+      renderEditorPage();
+    }
   });
 
   const undo = document.querySelector("[data-undo-change]");

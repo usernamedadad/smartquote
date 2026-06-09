@@ -1334,7 +1334,7 @@ function parseIndexedKey(token) {
   };
 }
 
-function recalcFreightFromTotal(data) {
+export function recalcFreightFromTotal(data) {
   const pricing = data.pricing || {};
   const enabled = new Set(pricing.enabledItems || []);
   if (!enabled.has("freight")) return;

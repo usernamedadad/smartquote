@@ -12,9 +12,10 @@ import { renderProjectsPage, registerProjectsCallbacks } from "./views/projects.
 import { renderEditorPage, registerEditorCallbacks } from "./views/editor.js";
 import { registerEditorModulesCallbacks } from "./views/editor-modules.js";
 import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
-import { markDirty, registerPreviewCallbacks } from "./views/preview.js";
+import { markDirty, renderQuotePreview, registerPreviewCallbacks } from "./views/preview.js";
 import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
+import { syncSectionFromPreview } from "./views/fullscreen-editor.js";
 
 /* ---- 注册回调（解决循环依赖） ---- */
 
@@ -49,7 +50,15 @@ registerPreviewCallbacks({
   addAccessory,
   selectProduct,
   removeQuoteItem,
-  refreshEditor: renderEditorPage,
+  syncSectionFromPreview,
+  refreshEditor: () => {
+    /* 全屏中只刷新预览区，不重建 DOM（避免退出全屏） */
+    if (state.previewFullscreen) {
+      renderQuotePreview();
+      return;
+    }
+    renderEditorPage();
+  },
   switchToModule: (moduleId, itemIndex) => {
     const sameModule = state.activeModule === moduleId;
     state.activeModule = moduleId;

@@ -214,13 +214,13 @@ function quoteItemRowsMarkup(data, options) {
       const qtyNum = parseFloat(qty);
       const qtyDisplay = qty ? `${extractNumeric(qty)} ${qtyNum === 1 ? "set" : "sets"}` : "";
       const accBtn = interactive
-        ? `<button class="preview-add-btn" data-add-accessory="${i}">+ Acc</button>`
+        ? `<button class="preview-add-btn preview-acc-btn" data-add-accessory="${i}">+ Acc</button>`
         : "";
-      const productSpecs = productSpecMarkup(item, i, options, accBtn);
+      const productSpecs = productSpecMarkup(item, i, options);
       const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${i}" title="删除">×</button>` : "";
       html += `
         <tr class="product-row ${i > 0 ? "product-row-separated" : ""}" ${interactive ? `data-preview-item="${i}"` : ""}>
-          <td>${i + 1}. ${deleteBtn}</td>
+          <td class="product-no-cell">${accBtn}<span class="product-no-text">${i + 1}.</span> ${deleteBtn}</td>
           <td>${productSpecs}</td>
           <td>${escapeHtml(qtyDisplay)}</td>
           <td>${escapeHtml(item.pricing?.unitPrice || "")}</td>
@@ -237,9 +237,9 @@ function quoteItemRowsMarkup(data, options) {
   return html;
 }
 
-function productSpecMarkup(item, itemIndex, options, actionMarkup = "") {
+function productSpecMarkup(item, itemIndex, options) {
   const interactive = options?.interactive || false;
-  const body = `<div class="product-name-bar"><h3>${escapeHtml(item.product?.enName || "")}</h3>${actionMarkup}</div>${parameterRows(item.parameters, itemIndex, interactive)}`;
+  const body = `<div class="product-name-bar"><h3>${escapeHtml(item.product?.enName || "")}</h3></div>${parameterRows(item.parameters, itemIndex, interactive)}`;
   const productImage = quoteImageById(item.imageId, options);
 
   if (!productImage) return body;
