@@ -854,18 +854,31 @@ function switchSection(sectionId) {
  * ============================================================ */
 
 function scrollToPreviewSection(sectionName) {
-  const el = document.querySelector(`#quote-preview [data-preview-section="${sectionName}"]`);
+  const preview = document.querySelector("#quote-preview");
+  const el = preview?.querySelector(`[data-preview-section="${sectionName}"]`);
   const scroll = document.querySelector(".preview-scroll");
-  if (!el || !scroll) return;
-  const offset = el.closest(".sheet")?.offsetTop || 0;
-  scroll.scrollTo({ top: offset * state.zoom - 20, behavior: "smooth" });
+  if (!el || !scroll || !preview) return;
+  /* el 相对于 preview 容器的偏移 */
+  let top = 0;
+  let node = el;
+  while (node && node !== preview) {
+    top += node.offsetTop;
+    node = node.offsetParent;
+  }
+  scroll.scrollTo({ top: top * state.zoom - 20, behavior: "smooth" });
 }
 
 function scrollToPreviewItem(itemIndex) {
-  const el = document.querySelector(`#quote-preview [data-preview-item="${itemIndex}"]`);
+  const preview = document.querySelector("#quote-preview");
+  const el = preview?.querySelector(`[data-preview-item="${itemIndex}"]`);
   const scroll = document.querySelector(".preview-scroll");
-  if (!el || !scroll) return;
-  const top = (el.closest(".sheet")?.offsetTop || 0) + el.offsetTop;
+  if (!el || !scroll || !preview) return;
+  let top = 0;
+  let node = el;
+  while (node && node !== preview) {
+    top += node.offsetTop;
+    node = node.offsetParent;
+  }
   scroll.scrollTo({ top: top * state.zoom - 40, behavior: "smooth" });
 }
 
