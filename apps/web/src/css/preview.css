@@ -99,3 +99,351 @@
   background: #f8fbff;
   color: var(--muted);
 }
+
+/* --- 预览区快速操作按钮 --- */
+
+.preview-action-row td {
+  padding: 12px 0;
+  border: none;
+  text-align: center;
+}
+
+.product-name-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.preview-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  padding: 6px 18px;
+  border: none;
+  border-radius: 20px;
+  background: var(--navy);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: .3px;
+  transition: background .2s;
+}
+
+.preview-add-btn:hover {
+  background: var(--orange);
+}
+
+/* + Acc 按钮更紧凑 */
+[data-add-accessory] {
+  min-width: 56px;
+  padding: 3px 12px;
+  font-size: 11px;
+}
+
+/* 预览区行内删除按钮 */
+.preview-delete-btn {
+  display: none;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.product-row:hover .preview-delete-btn {
+  display: grid;
+}
+
+/* + Add Product 按钮区域：上下虚线 */
+.preview-action-row td {
+  position: relative;
+}
+
+.preview-action-row td::before,
+.preview-action-row td::after {
+  content: "";
+  display: block;
+  margin: 0 auto;
+  width: 60%;
+  border-top: 1px dashed #b0b8c8;
+}
+
+.preview-action-row td::before { margin-bottom: 10px; }
+.preview-action-row td::after { margin-top: 10px; }
+
+/* 面板展开时隐藏虚线 */
+.preview-action-row td:has(.preview-product-panel)::before,
+.preview-action-row td:has(.preview-product-panel)::after {
+  display: none;
+}
+
+/* --- 行内产品选择面板（嵌入表格行内，不乱跑） --- */
+
+.preview-product-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+}
+
+.picker-product-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 1px solid #ebeef4;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.picker-product-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(31, 91, 214, .1);
+}
+
+.picker-product-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.picker-product-card span {
+  font-size: 11px;
+  color: #3a4256;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* --- 预览区 section 点击跳转提示 --- */
+
+.quote-sheet [data-preview-section],
+.quote-sheet [data-preview-party] {
+  cursor: pointer;
+  transition: outline .15s;
+}
+
+.quote-sheet [data-preview-section]:hover,
+.quote-sheet [data-preview-party]:hover {
+  outline: 2px solid rgba(31, 91, 214, .2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 产品/配件行 hover */
+.quote-sheet [data-preview-item] {
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.quote-sheet [data-preview-item]:hover {
+  background: rgba(31, 91, 214, .04);
+}
+
+/* --- 预览区日期选择器 --- */
+
+.pe-date-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.pe-date-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pe-date-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: #6b7a90;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+
+.pe-date-icon:hover {
+  color: var(--accent);
+  background: rgba(31, 91, 214, .08);
+}
+
+/* --- 预览区自定义参数输入框 --- */
+
+.pe-param-input {
+  border: 1px solid #d0d7e3;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .8);
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 1px 6px;
+  outline: none;
+  width: 180px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.pe-param-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(31, 91, 214, .1);
+}
+
+/* --- 配件 _new 行编辑卡片 --- */
+
+/* 行级卡片边框：首尾 td 圆角，中间 td 共享边框 */
+.pe-new-row td {
+  border-top: 1px solid #d0d7e3;
+  border-bottom: 1px solid #d0d7e3;
+  border-right: 0;
+  padding: 5px 8px !important;
+  background: rgba(248, 250, 255, .5);
+}
+
+.pe-new-row td:first-child {
+  border-left: 1px solid #d0d7e3;
+  border-radius: 6px 0 0 6px;
+  padding-left: 14px !important;
+}
+
+.pe-new-row td:last-child {
+  position: relative;
+  border-right: 1px solid #d0d7e3;
+  border-radius: 0 6px 6px 0;
+}
+
+/* 下划线输入框 */
+.pe-line-input {
+  border: 0;
+  border-bottom: 1.5px solid #c3d1e4;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  padding: 2px 4px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.pe-line-input::placeholder {
+  color: #b0b8c8;
+}
+
+.pe-line-input:focus {
+  border-bottom-color: var(--accent);
+}
+
+.pe-name-field { width: 130px; }
+.pe-qty-field { width: 48px; text-align: center; }
+.pe-unit-field { width: 48px; }
+.pe-price-field { width: 64px; text-align: center; }
+
+/* 删除按钮在卡片右侧 */
+.pe-new-row .pe-delete {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+}
+
+.pe-new-row .pe-linetotal {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* 浮动操作按钮（+ Param / + Row），不影响内容布局 */
+.pe-float-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  min-width: 56px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(49, 53, 65, .7);
+  color: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s, background .2s;
+  z-index: 2;
+}
+
+.product-row:hover .pe-float-btn {
+  opacity: 1;
+}
+
+.pe-float-btn:hover {
+  background: var(--orange);
+}
+
+/* pe-float-btn 的父 td 需要 relative */
+.product-row td:nth-child(2) {
+  position: relative;
+}
+
+/* 预览区删除按钮 */
+.pe-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(200, 50, 50, .12);
+  color: #c83232;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, background .15s;
+}
+
+.pe-custom-row:hover .pe-delete,
+.accessory-detail-row:hover .pe-delete {
+  opacity: 1;
+}
+
+.pe-delete:hover {
+  background: #c83232;
+  color: #fff;
+}
+
+/* 输入框聚焦时禁用行 hover 高亮 */
+.quote-sheet [data-preview-item]:has(.pe-input:focus) {
+  background: transparent;
+  cursor: default;
+}

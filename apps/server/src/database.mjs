@@ -310,7 +310,7 @@ export function createProject(data, userId, projectName = "") {
       current,
       current
     );
-    return getProject(result.lastInsertRowid);
+    return getProject(result.lastInsertRowid, userId);
   });
 }
 

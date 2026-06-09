@@ -500,29 +500,24 @@ body {
   display: grid;
   gap: 8px;
   width: 100%;
-  height: 480px;
 }
 
 .gallery figure {
   margin: 0;
   overflow: hidden;
-  border-radius: 6px;
-  background: #ffffff;
 }
 
 .gallery-1 { grid-template-columns: 1fr; }
 .gallery-2 { grid-template-columns: 1fr 1fr; }
-.gallery-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.gallery-3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
 .gallery-3 .gallery-span { grid-row: 1 / -1; }
-.gallery-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.gallery-5, .gallery-6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.gallery-4 { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+.gallery-5, .gallery-6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
 
 .gallery img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center center;
+  height: auto;
 }
 
 .footer {

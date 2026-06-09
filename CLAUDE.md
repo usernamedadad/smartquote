@@ -93,7 +93,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - **图片上传**：通过 base64 data URL 在 JSON body 中传输（非 multipart），上限 16MB
 - **报价编号格式**：`QT-YYYYMMDD-NNN`（日期 + 当日全局序号，取最大序号+重试防并发撞号）
 - **API 错误信息**为中文，报价单输出为英文
-- **图片画廊**：CSS Grid 自动布局（根据图片数量：1 全宽 / 2 两列 / 3 上宽下两窄 / 4 两列两行 / 5-6 三列两行），`object-fit: contain` 防变形，高度 480px。用户只需选择图片 + 调整顺序，无手动定位。画廊 CSS 只需维护一处：`css/quote-sheet-content.css`（`renderQuote.mjs` 直接读取该文件用于 PDF 导出）
+- **图片画廊**：CSS Grid 自适应布局（根据图片数量：1 全宽 / 2 两列 / 3 上宽下两窄 / 4 两列两行 / 5-6 三列两行），行高 `auto`，图片按原始比例自然显示（`width: 100%; height: auto`）。用户只需选择图片 + 调整顺序，无手动定位。画廊 CSS 只需维护一处：`css/quote-sheet-content.css`（`renderQuote.mjs` 直接读取该文件用于 PDF 导出）。PDF 导出时通过覆盖规则去掉预览中的 figure 边框/背景
 - **布局可定制**：报价单的 sections 和 parties 顺序可通过拖拽重排，存储在 `data.layout` 中
 - **项目列表页**：三栏布局（侧栏导航 + 主区域 + 信息栏），顶部显示头像+名称+角色标签，卡片网格第一个为虚线框「+」新建卡片，后续为项目卡片（顶部真实报价单缩略预览 + 下方详细信息），右下角三点菜单含重命名/删除操作。`normalizeProjectListRow` 返回完整 `data` 字段供前端渲染预览和计算金额。侧栏不含帮助模块，底部仅有退出登录
 - **个人中心页**（`views/profile.js`）：蓝色渐变 banner + 首字母头像 + 角色标签 → 统计卡片（项目数/图片数/登录账号）→ 联系方式表单（6 字段，2 列 grid）→ 密码修改表单。sales 用户可编辑自己的联系方式（`PUT /api/me/profile`），admin 只能在用户管理页编辑
@@ -160,7 +160,8 @@ main.js ← 以上所有（顶层编排，无人导入它）
   - **配件卡片级定价已移除**：pricing 只保留 `totalAmount`（由 `recalcAccessoryTotal()` 汇总参数行总价，用于报价总价汇总），不再有卡片级 `quantity`/`unitPrice`
   - `buildItemGroups()` 将扁平数组分组（产品+其配件），移动/删除按组操作
   - 报价单中配件行为多行结构：主行只显示名称（最右列留空），子行显示各参数的数量/单价/行总价（含 `$` 前缀）
-- **产品选择逻辑**：产品条上的卡片支持点击切换——点击未选中的产品添加到清单（按添加顺序自动编号），点击已选中的产品移除及其配件。允许空产品列表（新建项目仍默认预置欧式葫芦）
+- **产品选择逻辑**：产品条上的卡片支持点击切换——点击未选中的产品添加到清单（按添加顺序自动编号），点击已选中的产品移除及其配件。允许空产品列表（新建项目仍默认预置欧式葫芦）。点击产品后自动滚动到对应序号卡片（补偿 sticky 产品条高度，`.module-editor.scrollTo()`）
+- **预览→编辑区导航优化**：`switchToModule` 在同模块时跳过 `renderEditorPage()` 全量重渲染——同模块无 `itemIndex` 直接返回，有 `itemIndex` 时仅滚动到目标卡片。跨模块时才重渲染 + 滚动
 - 数量/单价输入框仅允许纯数字输入（`inputmode="decimal"`）。**产品**数量后缀动态：1 → `/set`，>1 → `/sets`；单价固定 `/set`。**配件**每行参数有独立 `unit` 字段（默认空），数量后缀为空时不显示，有单位时 qty=1 → `/unit`，qty>1 → `/units`（加 s 复数）；单价后缀有单位时始终为 `/unit`（单数，不加 s）
 - **价格列 `$` 对齐**：报价单中 Total Amount 列和 Summary 行（SUBTOTAL/FREIGHT/TOTAL）的数值使用 `text-align: left; padding-left: 20px`，确保所有 `$` 符号在同一竖线上对齐。Summary grid 为 `1fr 147px`（147px 精确匹配 Total Amount 列宽）。三处 CSS 同步
 - **TOTAL 可编辑**：Pricing 模块的 TOTAL 字段可编辑。启用 Subtotal + Freight 时，编辑 TOTAL 会反算 FREIGHT（`recalcFreightFromTotal`）；未启用时 TOTAL 直接使用用户输入值
@@ -168,7 +169,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - 报价单中所有产品/配件分项之间通过 `product-row-separated` 类添加双线分隔（`border-top: 2px double #1d1d1d`）
 - 报价单模板统一在 `quote-template.js`（纯函数模块，无浏览器/Node API），预览和 PDF 共用 `quoteBodyMarkup(data, images, params, options)`。差异通过 `options` 参数处理：`imageSrc`（图片路径）、`draggable`（拖拽属性）、`logoSrc`、`galleryClasses`、`heroTitleFallback`、`labels`（翻译后的模板标签覆盖默认英文标签）
 - `quote-template.js` 导出 `LABEL_KEYS`（18 个标签 key 数组）和 `DEFAULT_LABELS`（默认英文标签值），翻译时标签与数据文本一起批量发送给翻译 API，翻译结果存入 `translation.labels`。渲染时 `quoteBodyMarkup` 内部合并 `options.labels` 与 `DEFAULT_LABELS`
-- 画廊渲染使用 CSS Grid（`gallery-1` 到 `gallery-6` 类名控制列数），高度 480px。样式在三处同步：`css/quote-sheet-content.css`（浏览器预览）、`templates/style.css`（HTML 模板）、`renderQuote.mjs` 的 `galleryGridCss`（PDF 导出）
+- 画廊渲染使用 CSS Grid（`gallery-1` 到 `gallery-6` 类名控制列数），行高 `auto` 图片按原始比例自然显示。样式维护两处：`css/quote-sheet-content.css`（浏览器预览，`renderQuote.mjs` 直接读取用于 PDF 导出）和 `templates/style.css`（独立 HTML 模板）。PDF 导出时覆盖去掉 figure 的边框/背景/圆角
 - 项目列表卡片为 3 列纵向布局，顶部显示真实报价单缩略预览（CSS `transform: scale(0.26)` + `contain: layout paint`），下方显示标题/客户/编号/产品/金额/时间，右下角三点菜单。`database.mjs` 的 `normalizeProjectListRow` 返回完整 `data` 字段供前端计算金额和渲染预览
 - `state.js` 的 `normalizeQuoteLayout` / `defaultQuoteSectionOrder` / `defaultPartyOrder` 已迁移至 `quote-template.js`，`state.js` 通过 re-export 保持向后兼容
 - 预览通过 CSS `transform: scale(state.zoom)` 缩放，原始尺寸 1024×1536px
@@ -178,7 +179,16 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - `ui.js` 的 `showContentModal()` 用于需要自定义 HTML 内容的弹窗（项目命名、图库浏览、用户管理等），通过 `onMount(root, close)` 回调绑定内部事件
 - **项目切换面板**：预览工具栏右侧"项目切换"按钮触发右侧滑入面板（宽 45vw），2 列卡片网格，每张卡片含缩略预览+项目信息。hover 时预览变灰+中央显示"使用"。`editor.js` 中的 `openProjectSwitchPanel()` 调用 `loadWorkspace()` 刷新数据后渲染，`switchCardMarkup()` 复用 `quoteBodyMarkup` 生成缩略图，`scaleSwitchPreviews()` 动态计算缩放比
 - **图片管理滚动**：`.selected-images` 和 `.choose-grid` 设有 `max-height: 280px` + `overflow-y: auto` + 隐藏滚动条，图片多时可鼠标滚轮浏览。**CSS Grid 嵌套场景中此方案失效**——子元素的 `height` + `overflow-y: auto` 不产生约束（grid 行根据内容自动扩展），必须用普通 `display: block` 包裹容器做滚动层（参见 `editor.css` 的 `.sidebar-asset-scroll`、`.project-switch-scroll`）
-- **产品条布局**：`.product-strip` 使用 `repeat(6, 1fr)` 均分 6 张产品卡片，无横向滚动
+- **产品条布局**：`.product-strip` 使用 `repeat(6, 1fr)` 均分 6 张产品卡片，无横向滚动。参数编辑模块中产品条用 `.product-strip-sticky`（`position: sticky; top: 0`）固定在编辑区顶部，滚动参数列表时始终可见。`.editor-card` 已去掉 `overflow: hidden` 以允许 sticky 生效，滚动由外层 `.module-editor` 控制
+- **预览区行内编辑**：`options.interactive` 为 true 时，报价单模板支持在预览区直接编辑数据：
+  - **产品自定义参数**：`__custom_` 前缀参数渲染为 `<input class="pe-param-input">`（可见输入框），内置参数保持纯文本。`+ Param` 浮动按钮添加新参数
+  - **配件可编辑行**：`_new` 标记的配件参数行渲染为卡片行（`.pe-new-row`），内部用下划线输入框（`.pe-line-input`）编辑名称/数量/单位/单价。添加配件时自动预置一个 `_new` 参数行
+  - **日期选择器**：报价日期旁显示日历图标（`.pe-date-icon`），点击触发隐藏的 `<input type="date">`，选完后转为英文长格式存储（如 `"June 9, 2025"`）。编辑区和预览区均有此功能
+  - **quietDirty()**：输入事件中调用，更新 dirty 标记和删除翻译但不触发预览重渲染（防输入框失焦）。`blur` 事件中调用 `_refreshEditor()` 同步编辑区
+  - **靶向 DOM 更新**：`updateLineTotalCell()` / `updateSummaryCells()` 直接更新依赖值，不做全量重渲染
+  - **`_refreshEditor` 回调**：通过 `registerPreviewCallbacks` 注入 `renderEditorPage`，预览区编辑失焦后刷新编辑区面板
+  - **`normalizeAccessoryParameters`** 保留 `_new` 标记：`...(p._new ? { _new: true } : {})`，防止规范化时丢失
+  - CSS 统一用 `pe-` 前缀（preview-edit），属性用 `data-edit-` 前缀。样式在 `css/preview.css`
 
 ### Common Development Patterns
 
@@ -238,6 +248,6 @@ sanitizeProjectData()  → 补齐缺失顶层字段
 
 ## PDF Export
 
-- **CSS 一致性**：`renderQuote.mjs` 的 `quoteExportCss()` 直接读取 `css/quote-sheet-layout.css` + `css/quote-sheet-content.css` 生成 PDF 样式，浏览器预览和 PDF 导出共用同一份 CSS，无需多处同步
+- **CSS 一致性**：`renderQuote.mjs` 的 `quoteExportCss()` 直接读取 `css/quote-sheet-layout.css` + `css/quote-sheet-content.css` 生成 PDF 样式，浏览器预览和 PDF 导出共用同一份 CSS，无需多处同步。PDF 额外覆盖去掉画廊 figure 的边框/背景/圆角（预览中的边框仅用于布局定义）
 - **输出策略**：`measureContentHeight()` 测量内容实际高度，PDF 页面高度取 `max(1536, contentHeight)`，确保内容不截断；内容 ≤ 1536px 时仍为标准单页尺寸
 - **翻译容器弹性高度**：所有承载翻译文本的容器使用 `min-height` 而非固定 `height`（`.meta-row`、`.pricing-table thead th`、`.terms-box`、`.footer-text`、`.summary-line`），确保翻译后文本换行时容器自动撑高不溢出

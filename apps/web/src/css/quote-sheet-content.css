@@ -92,11 +92,17 @@
   text-align: left;
 }
 
+/* 配件 _new 行卡片字体继承 */
+.quote-sheet .pe-line-input {
+  font-size: 14px;
+}
+
 .quote-sheet .product-row-separated td {
   border-top: 2px double #1d1d1d;
 }
 
 .quote-sheet .product-row td:first-child {
+  position: relative;
   padding: 0;
   text-align: center;
 }
@@ -117,11 +123,54 @@
   text-align: left;
 }
 
+.quote-sheet .product-name-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.quote-sheet .product-name-bar h3 {
+  margin: 0;
+}
+
 .quote-sheet .product-row h3 {
   margin: 0 0 7px;
   font-size: 17px;
   font-weight: 700;
   line-height: 1.18;
+}
+
+.quote-sheet .product-spec-with-image {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 184px;
+  align-items: center;
+  gap: 16px;
+}
+
+.quote-sheet .product-spec-text {
+  min-width: 0;
+}
+
+.quote-sheet .product-inline-image {
+  position: relative;
+  display: grid;
+  width: 184px;
+  height: 210px;
+  margin: 0;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+}
+
+.quote-sheet .product-inline-image img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
 }
 
 .quote-sheet .accessory-row td:nth-child(2) {
@@ -260,50 +309,88 @@
   display: grid;
   gap: 8px;
   width: 100%;
-  height: 480px;
+  grid-auto-flow: row;
+  align-items: start;
+  justify-items: stretch;
 }
 
 .quote-sheet .gallery figure {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  padding: 7px;
+  place-items: center;
   margin: 0;
   overflow: hidden;
+  border: 1px solid #e3e8f0;
   border-radius: 6px;
-  background: #fff;
+  background: #f8fafc;
+  /* 仅预览用：PDF 导出时覆盖为无框 */
 }
 
-.quote-sheet .gallery-1 {
+.quote-sheet .gallery.gallery-preset-single-full {
   grid-template-columns: 1fr;
 }
 
-.quote-sheet .gallery-2 {
+.quote-sheet .gallery.gallery-preset-two-columns {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: none;
+  grid-auto-rows: auto;
+}
+
+.quote-sheet .gallery.gallery-preset-two-rows {
+  grid-template-columns: 1fr;
+  grid-template-rows: none;
+  grid-auto-rows: auto;
+}
+
+.quote-sheet .gallery.gallery-preset-hero-left,
+.quote-sheet .gallery.gallery-preset-hero-top,
+.quote-sheet .gallery.gallery-preset-grid.gallery-3,
+.quote-sheet .gallery.gallery-preset-grid.gallery-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+
+.quote-sheet .gallery.gallery-preset-hero-top {
+  grid-template-rows: auto auto;
+}
+
+.quote-sheet .gallery.gallery-preset-grid.gallery-5,
+.quote-sheet .gallery.gallery-preset-grid.gallery-6 {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+
+.quote-sheet .gallery.gallery-1 {
+  grid-template-columns: 1fr;
+}
+
+.quote-sheet .gallery.gallery-2:not(.gallery-preset-two-rows) {
   grid-template-columns: 1fr 1fr;
 }
 
-.quote-sheet .gallery-3 {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+.quote-sheet .gallery.gallery-2.gallery-preset-two-rows {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
 }
 
-.quote-sheet .gallery-3 .gallery-span {
+.quote-sheet .gallery.gallery-preset-hero-left .gallery-span-left,
+.quote-sheet .gallery.gallery-preset-grid.gallery-3 .gallery-span {
   grid-row: 1 / -1;
 }
 
-.quote-sheet .gallery-4 {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.quote-sheet .gallery-5,
-.quote-sheet .gallery-6 {
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+.quote-sheet .gallery.gallery-preset-hero-top .gallery-span-top {
+  grid-column: 1 / -1;
 }
 
 .quote-sheet .gallery img {
   display: block;
+  min-width: 0;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center center;
+  height: auto;
 }
 
 .quote-sheet .gallery figure[draggable="true"] {

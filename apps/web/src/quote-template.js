@@ -11,7 +11,7 @@
 import {
   escapeHtml, valueText, normalizeTerms,
   isLineOnlyParameter, lineParameterText,
-  normalizeQuoteItems, updateQuoteTotals, extractNumeric
+  normalizeQuoteItems, updateQuoteTotals, extractNumeric, normalizeGalleryPreset
 } from "./utils.js";
 
 export {
@@ -73,30 +73,50 @@ export function normalizeQuoteLayout(data) {
 
 /* ---- 参数行 ---- */
 
-export function parameterRows(parameters = {}) {
-  return Object.entries(parameters)
-    .filter(([, value]) => valueText(value).trim() !== "")
-    .map(([key, value]) => {
-      if (isLineOnlyParameter(value)) {
-        return `<p>- ${escapeHtml(lineParameterText(key))}</p>`;
+export function parameterRows(parameters = {}, itemIndex = -1, interactive = false) {
+  const entries = Object.entries(parameters)
+    .filter(([key, value]) => {
+      if (!key) return false;
+      /* interactive 模式下始终显示自定义参数（即使值为空） */
+      if (interactive && key.startsWith("__custom_")) return true;
+      return valueText(value).trim() !== "";
+    });
+
+  let html = entries.map(([key, value]) => {
+    /* 自定义参数：interactive 时渲染为可编辑 input */
+    if (key.startsWith("__custom_")) {
+      if (interactive) {
+        return `<p class="pe-custom-row">- <input class="pe-param-input" data-edit-param="${itemIndex}:${escapeHtml(key)}" value="${escapeHtml(valueText(value))}" placeholder="输入参数内容..."><button class="pe-delete" data-delete-param="${itemIndex}:${escapeHtml(key)}" title="删除">×</button></p>`;
+      }
+      return `<p>- ${escapeHtml(valueText(value))}</p>`;
+    }
+
+    /* 以下为内置参数，保持纯文本渲染，不做编辑 */
+
+    if (isLineOnlyParameter(value)) {
+      return `<p>- ${escapeHtml(lineParameterText(key))}</p>`;
+    }
+
+    if (Array.isArray(value)) {
+      if (key === "Steel Structure Parts") {
+        return value.filter(Boolean).map((item) => `<p>- ${escapeHtml(item)}</p>`).join("");
       }
 
-      if (Array.isArray(value)) {
-        if (key === "Steel Structure Parts") {
-          return value.filter(Boolean).map((item) => `<p>- ${escapeHtml(item)}</p>`).join("");
-        }
+      return `
+        <div class="parameter-split">
+          <span>- ${escapeHtml(key)}:</span>
+          <div>${value.filter(Boolean).map((item) => `<b>${escapeHtml(item)}</b>`).join("")}</div>
+        </div>
+      `;
+    }
 
-        return `
-          <div class="parameter-split">
-            <span>- ${escapeHtml(key)}:</span>
-            <div>${value.filter(Boolean).map((item) => `<b>${escapeHtml(item)}</b>`).join("")}</div>
-          </div>
-        `;
-      }
+    return `<p>- ${escapeHtml(key)}: ${escapeHtml(valueText(value))}</p>`;
+  }).join("");
 
-      return `<p>- ${escapeHtml(key)}: ${escapeHtml(valueText(value))}</p>`;
-    })
-    .join("");
+  if (interactive && itemIndex >= 0) {
+    html += `<button class="pe-float-btn" data-add-param-preview="${itemIndex}">+ Param</button>`;
+  }
+  return html;
 }
 
 /* ---- 条款 ---- */
@@ -139,15 +159,18 @@ function partyCardMarkup(partyId, data, options) {
   `;
 }
 
-function galleryGridMarkup(images, options) {
-  const count = images.length;
+function galleryGridMarkup(data, images, options) {
+  const preset = normalizeGalleryPreset(data);
+  const visibleImages = images.slice(0, galleryPresetSlotCount(preset));
+  const count = visibleImages.length;
   const countClass = `gallery-${Math.min(count, 6)}`;
   const imageSrc = options.imageSrc || ((img) => img.url);
 
-  const items = images.map((image, index) => {
+  const items = visibleImages.map((image, index) => {
     const src = imageSrc(image);
     if (!src) return "";
-    const span = (count === 3 && index === 0) ? ' class="gallery-span"' : '';
+    const figureClass = galleryFigureClass(preset, index, count);
+    const span = figureClass ? ` class="${figureClass}"` : "";
     const figDrag = options.draggable ? ` draggable="true" data-preview-gallery-image="${image.id}"` : "";
     return `<figure${span}${figDrag}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
   }).filter(Boolean).join("");
@@ -158,43 +181,131 @@ function galleryGridMarkup(images, options) {
 
   return `
     <section class="gallery-section${dragClass}" ${drag} aria-label="Product images">
-      <div class="gallery ${countClass}${classes}">${items}</div>
+      <div class="gallery gallery-preset-${preset} ${countClass}${classes}">${items}</div>
     </section>
   `;
 }
 
-function quoteItemRowsMarkup(data) {
-  const items = normalizeQuoteItems(data);
-  return items.map((item, index) => {
-    if (item.type === "accessory") return accessoryRowsMarkup(item, index);
-    const qty = item.pricing?.quantity || "";
-    const qtyNum = parseFloat(qty);
-    const qtyDisplay = qty ? `${extractNumeric(qty)} ${qtyNum === 1 ? "set" : "sets"}` : "";
-    return `
-      <tr class="product-row ${index > 0 ? "product-row-separated" : ""}">
-        <td>${index + 1}.</td>
-        <td><h3>${escapeHtml(item.product?.enName || "")}</h3>${parameterRows(item.parameters)}</td>
-        <td>${escapeHtml(qtyDisplay)}</td>
-        <td>${escapeHtml(item.pricing?.unitPrice || "")}</td>
-        <td>${amountCellMarkup(item.pricing?.totalAmount)}</td>
-      </tr>
-    `;
-  }).join("");
+function galleryPresetSlotCount(preset) {
+  if (preset === "single-full") return 1;
+  if (preset === "two-columns" || preset === "two-rows") return 2;
+  if (preset === "hero-left" || preset === "hero-top") return 3;
+  return 6;
 }
 
-function accessoryRowsMarkup(item, index) {
+function galleryFigureClass(preset, index, count) {
+  if (count < 3) return "";
+  if (preset === "hero-left" && index === 0) return "gallery-span gallery-span-left";
+  if (preset === "hero-top" && index === 0) return "gallery-span gallery-span-top";
+  return "";
+}
+
+function quoteItemRowsMarkup(data, options) {
+  const items = normalizeQuoteItems(data);
+  const interactive = options?.interactive;
+  let html = "";
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type === "accessory") {
+      html += accessoryRowsMarkup(item, i, interactive);
+    } else {
+      const qty = item.pricing?.quantity || "";
+      const qtyNum = parseFloat(qty);
+      const qtyDisplay = qty ? `${extractNumeric(qty)} ${qtyNum === 1 ? "set" : "sets"}` : "";
+      const accBtn = interactive
+        ? `<button class="preview-add-btn" data-add-accessory="${i}">+ Acc</button>`
+        : "";
+      const productSpecs = productSpecMarkup(item, i, options, accBtn);
+      const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${i}" title="删除">×</button>` : "";
+      html += `
+        <tr class="product-row ${i > 0 ? "product-row-separated" : ""}" ${interactive ? `data-preview-item="${i}"` : ""}>
+          <td>${i + 1}. ${deleteBtn}</td>
+          <td>${productSpecs}</td>
+          <td>${escapeHtml(qtyDisplay)}</td>
+          <td>${escapeHtml(item.pricing?.unitPrice || "")}</td>
+          <td>${amountCellMarkup(item.pricing?.totalAmount)}</td>
+        </tr>`;
+    }
+  }
+
+  // 底部 "+ Add Product"
+  if (interactive) {
+    html += `<tr class="preview-action-row"><td colspan="5"><button class="preview-add-btn" data-add-product>+ Add Product</button></td></tr>`;
+  }
+
+  return html;
+}
+
+function productSpecMarkup(item, itemIndex, options, actionMarkup = "") {
+  const interactive = options?.interactive || false;
+  const body = `<div class="product-name-bar"><h3>${escapeHtml(item.product?.enName || "")}</h3>${actionMarkup}</div>${parameterRows(item.parameters, itemIndex, interactive)}`;
+  const productImage = quoteImageById(item.imageId, options);
+
+  if (!productImage) return body;
+
+  const imageSrc = options.imageSrc || ((img) => img.url);
+  const src = imageSrc(productImage);
+  if (!src) return body;
+
+  return `
+    <div class="product-spec-with-image">
+      <div class="product-spec-text">${body}</div>
+      <figure class="product-inline-image">
+        <img src="${src}" alt="${escapeHtml(productImage.originalName || item.product?.enName || "")}">
+      </figure>
+    </div>
+  `;
+}
+
+function quoteImageById(imageId, options = {}) {
+  if (!imageId) return null;
+  const id = Number(imageId);
+  if (typeof options.imageById === "function") return options.imageById(id);
+  const images = options.assetImages || options.images || [];
+  return images.find((image) => Number(image.id) === id) || null;
+}
+
+function accessoryRowsMarkup(item, index, interactive = false) {
   const params = Array.isArray(item.parameters) ? item.parameters : [];
   const fallbackUnit = item.unit || "";
   const name = escapeHtml(item.accessoryName || item.product?.enName || "");
   const rowSep = index > 0 ? "product-row-separated" : "";
+  const itemAttr = interactive ? `data-preview-item="${index}"` : "";
+  const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${index}" title="删除">×</button>` : "";
 
-  const visibleParams = params.filter((p) => p.name.trim());
-  const detailRows = visibleParams.map((p) => {
+  /* 只显示有名称的参数行；interactive 时也显示 _new 标记的新行 */
+  const visibleParams = interactive
+    ? params.filter((p) => p.name.trim() || p._new)
+    : params.filter((p) => p.name.trim());
+  const rowCount = visibleParams.length + 1;
+
+  /* + Row 浮动按钮放在名称 <td> 内，不占表格行 */
+  const addRowBtn = interactive
+    ? `<button class="pe-float-btn" data-add-acc-row="${index}">+ Row</button>`
+    : "";
+
+  const nameHtml = `<h3>${name}</h3>${addRowBtn}`;
+
+  const detailRows = visibleParams.map((p, pi) => {
     const pUnit = p.unit || fallbackUnit;
     const qtyNum = parseFloat(extractNumeric(p.quantity)) || 0;
     const qtyUnitForm = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
     const pQty = p.quantity ? (qtyUnitForm ? `${extractNumeric(p.quantity)} ${qtyUnitForm}` : extractNumeric(p.quantity)) : "";
     const pPrice = p.unitPrice ? (pUnit ? `$${extractNumeric(p.unitPrice)}/${pUnit}` : `$${extractNumeric(p.unitPrice)}`) : "";
+
+    /* 只有 _new 标记的行才渲染为可编辑卡片行 */
+    if (interactive && p._new) {
+      const rawQty = extractNumeric(p.quantity || "");
+      const rawPrice = extractNumeric(p.unitPrice || "");
+      const rawUnit = p.unit || "";
+      return `<tr class="accessory-detail-row pe-new-row">
+        <td><input class="pe-line-input pe-name-field" data-edit-acc-name="${index}:${pi}" value="${escapeHtml(p.name.trim())}" placeholder="参数名称"></td>
+        <td><input class="pe-line-input pe-qty-field" data-edit-acc-qty="${index}:${pi}" value="${escapeHtml(rawQty)}" placeholder="数量"> <input class="pe-line-input pe-unit-field" data-edit-acc-unit="${index}:${pi}" value="${escapeHtml(rawUnit)}" placeholder="单位"></td>
+        <td>$<input class="pe-line-input pe-price-field" data-edit-acc-price="${index}:${pi}" value="${escapeHtml(rawPrice)}" placeholder="单价"></td>
+        <td class="pe-linetotal" data-linetotal-cell="${index}:${pi}">${amountCellMarkup(p.lineTotal)}<button class="pe-delete" data-delete-acc-row="${index}:${pi}" title="删除">×</button></td>
+      </tr>`;
+    }
     return `<tr class="accessory-detail-row">
       <td>- ${escapeHtml(p.name)}</td>
       <td>${escapeHtml(pQty)}</td>
@@ -203,9 +314,9 @@ function accessoryRowsMarkup(item, index) {
     </tr>`;
   }).join("");
 
-  return `<tr class="product-row accessory-row ${rowSep}">
-    <td rowspan="${visibleParams.length + 1}">${index + 1}.</td>
-    <td><h3>${name}</h3></td>
+  return `<tr class="product-row accessory-row ${rowSep}" ${itemAttr}>
+    <td rowspan="${rowCount}">${index + 1}. ${deleteBtn}</td>
+    <td>${nameHtml}</td>
     <td></td><td></td><td></td>
   </tr>${detailRows}`;
 }
@@ -272,7 +383,7 @@ function quoteSectionMarkup(sectionId, data, images, params, options) {
             </tr>
           </thead>
           <tbody>
-            ${quoteItemRowsMarkup(data)}
+            ${quoteItemRowsMarkup(data, options)}
             ${pricingSummaryRowsMarkup(data, options)}
           </tbody>
         </table>
@@ -291,7 +402,7 @@ function quoteSectionMarkup(sectionId, data, images, params, options) {
 
   if (sectionId === "gallery") {
     if (!images.length) return "";
-    return galleryGridMarkup(images, options);
+    return galleryGridMarkup(data, images, options);
   }
 
   if (sectionId === "footer") {
@@ -330,18 +441,30 @@ export function quoteBodyMarkup(data, images, params, options = {}) {
   const logoSrc = options.logoSrc || "/assets/logo.png";
   const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
   const opts = { ...options, labels };
+  const interactive = options?.interactive;
+  const basicAttr = interactive ? `data-preview-section="basic"` : "";
+  const dateValue = data.quoteMeta?.date || "";
+  /* 将 "June 9, 2025" 等格式转为 YYYY-MM-DD 供 date input 使用 */
+  let dateIso = "";
+  if (dateValue) {
+    const d = new Date(dateValue);
+    if (!isNaN(d.getTime())) dateIso = d.toISOString().slice(0, 10);
+  }
+  const dateDisplay = interactive
+    ? `<dd class="pe-date-wrap">${escapeHtml(dateValue)}<input type="date" class="pe-date-input" data-edit-date value="${escapeHtml(dateIso)}"><span class="pe-date-icon" title="选择日期"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5"/><line x1="1.5" y1="7" x2="14.5" y2="7"/><line x1="5" y1="1" x2="5" y2="4.5"/><line x1="11" y1="1" x2="11" y2="4.5"/></svg></span></dd>`
+    : `<dd>${escapeHtml(dateValue)}</dd>`;
 
   return `
-    <header class="topbar">
+    <header class="topbar" ${basicAttr}>
       <img class="brand-logo" src="${logoSrc}" alt="ZK Hoist">
       <dl class="quote-meta" aria-label="Quote information">
         <div class="meta-row"><dt>${escapeHtml(labels.quoteNo)}</dt><dd>${escapeHtml(data.quoteMeta?.quoteNo || "")}</dd></div>
-        <div class="meta-row"><dt>${escapeHtml(labels.date)}</dt><dd>${escapeHtml(data.quoteMeta?.date || "")}</dd></div>
+        <div class="meta-row"><dt>${escapeHtml(labels.date)}</dt>${dateDisplay}</div>
         <div class="meta-row"><dt>${escapeHtml(labels.validity)}</dt><dd>${escapeHtml(data.quoteMeta?.validity || "")}</dd></div>
       </dl>
     </header>
 
-    <section class="hero-title" aria-label="Quotation title">
+    <section class="hero-title" ${basicAttr} aria-label="Quotation title">
       <div class="title-ribbon title-ribbon-large"><span>${escapeHtml(title)}</span></div>
     </section>
 

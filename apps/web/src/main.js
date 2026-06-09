@@ -13,7 +13,7 @@ import { renderEditorPage, registerEditorCallbacks } from "./views/editor.js";
 import { registerEditorModulesCallbacks } from "./views/editor-modules.js";
 import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
 import { markDirty, registerPreviewCallbacks } from "./views/preview.js";
-import { rerenderSelectedImages } from "./views/editor-modules.js";
+import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
 
 /* ---- 注册回调（解决循环依赖） ---- */
@@ -23,9 +23,51 @@ registerTopbarCallbacks({ renderLoginPage, loadWorkspace, renderProjectsPage, re
 registerLoginCallbacks({ renderProjectsPage });
 registerUsersCallbacks({ renderProjectsPage });
 registerProjectsCallbacks({ openProject, uploadImage, uploadImageFromFile, deleteImage, renderUsersPage });
-registerEditorCallbacks({ uploadImage, deleteImage, openProject, loadWorkspace });
-registerEditorModulesCallbacks({ renderEditorPage });
-registerPreviewCallbacks({ rerenderSelectedImages });
+registerEditorCallbacks({ openProject, loadWorkspace });
+registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage });
+
+/** 滚动到指定产品/配件卡片，补偿 sticky 产品条高度 */
+function scrollToQuoteItem(itemIndex) {
+  const card = document.querySelector(`[data-quote-item="${itemIndex}"]`);
+  const editor = document.querySelector(".module-editor");
+  const sticky = document.querySelector(".product-strip-sticky");
+  if (!card || !editor) return;
+  const item = state.activeProject?.data?.quoteItems?.[itemIndex];
+  if (item?.collapsed) {
+    item.collapsed = false;
+    card.classList.remove("collapsed");
+    const body = card.querySelector(".quote-item-body");
+    if (body) body.style.display = "";
+  }
+  const stickyH = sticky ? sticky.offsetHeight : 0;
+  const offset = card.offsetTop - editor.offsetTop - stickyH - 8;
+  editor.scrollTo({ top: Math.max(0, offset), behavior: "smooth" });
+}
+
+registerPreviewCallbacks({
+  rerenderSelectedImages,
+  addAccessory,
+  selectProduct,
+  removeQuoteItem,
+  refreshEditor: renderEditorPage,
+  switchToModule: (moduleId, itemIndex) => {
+    const sameModule = state.activeModule === moduleId;
+    state.activeModule = moduleId;
+
+    /* 同模块：只滚动到目标卡片，不重渲染 */
+    if (sameModule) {
+      if (itemIndex == null) return;
+      scrollToQuoteItem(itemIndex);
+      return;
+    }
+
+    /* 跨模块：重渲染编辑区 + 滚动 */
+    renderEditorPage();
+    if (itemIndex != null) {
+      requestAnimationFrame(() => scrollToQuoteItem(itemIndex));
+    }
+  },
+});
 registerTranslateCallbacks({ renderEditorPage });
 
 /* ---- 全局错误捕获 ---- */
@@ -105,6 +147,9 @@ async function deleteImage(id) {
   if (state.activeProject) {
     recordUndoSnapshot();
     state.activeProject.data.selectedImageIds = state.activeProject.data.selectedImageIds.filter((imageId) => Number(imageId) !== Number(id));
+    (state.activeProject.data.quoteItems || []).forEach((item) => {
+      if (Number(item.imageId) === Number(id)) item.imageId = "";
+    });
     normalizeGalleryLayout(state.activeProject.data, state.images);
     markDirty();
     renderEditorPage();

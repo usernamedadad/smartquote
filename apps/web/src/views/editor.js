@@ -5,7 +5,6 @@ import { state, modules, app } from "../state.js";
 import { escapeHtml, formatTime } from "../utils.js";
 import { moduleIconSvg, hamburgerIconSvg, chevronRightSvg, fitViewIconSvg, minusIconSvg, plusIconSvg, fullscreenIconSvg, undoIconSvg, redoIconSvg } from "../icons.js";
 import { topbarMarkup, bindTopbar } from "../topbar.js";
-import { showContentModal } from "../ui.js";
 
 import { renderQuotePreview, setPreviewZoom, fitPreviewToPanel } from "./preview.js";
 import { renderModuleEditor } from "./editor-modules.js";
@@ -13,11 +12,9 @@ import { quoteBodyMarkup, normalizeQuoteLayout, normalizeQuoteItems, normalizeGa
 import { undoLastChange, restoreOriginalProjectData } from "../history.js";
 import { api } from "../api.js";
 
-let _uploadImage, _deleteImage, _openProject, _loadWorkspace;
+let _openProject, _loadWorkspace;
 
-export function registerEditorCallbacks({ uploadImage, deleteImage, openProject, loadWorkspace }) {
-  _uploadImage = uploadImage;
-  _deleteImage = deleteImage;
+export function registerEditorCallbacks({ openProject, loadWorkspace }) {
   _openProject = openProject;
   _loadWorkspace = loadWorkspace;
 }
@@ -41,26 +38,6 @@ export function renderEditorPage() {
           <nav class="module-list">
             ${modules.map(moduleButtonMarkup).join("")}
           </nav>
-          <div class="sidebar-gallery">
-            <strong>图片管理</strong>
-            <label class="editor-upload-drop">
-              <input id="editor-upload" type="file" accept="image/*">
-              <span class="upload-cloud">⇧</span>
-              <b>拖拽图片到此处上传</b>
-              <em>或点击上传</em>
-            </label>
-            <div class="sidebar-asset-scroll">
-            <div class="sidebar-asset-grid">
-              ${state.images.map((image) => `
-                <button class="sidebar-asset-card" type="button" data-preview-image="${image.id}">
-                  <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
-                  <span>${escapeHtml(image.originalName)}</span>
-                </button>
-              `).join("")}
-            </div>
-            </div>
-            <button class="ghost-button gallery-manage-button" type="button" data-open-gallery-manager>管理图片库</button>
-          </div>
         </aside>
 
         <section class="module-editor">
@@ -111,15 +88,12 @@ export function renderEditorPage() {
   bindTopbar();
   bindSidebarToggle();
   bindModuleNavigation();
-  bindSidebarGallery();
   bindPreviewControls();
   renderModuleEditor();
   renderQuotePreview();
 
   const scrollPanel = document.querySelector(".preview-scroll");
   if (scrollPanel && savedScroll) scrollPanel.scrollTop = savedScroll;
-
-  document.querySelector("#editor-upload").addEventListener("change", _uploadImage);
 }
 
 /* ---- 内部函数 ---- */
@@ -187,87 +161,6 @@ function bindPreviewControls() {
     });
   }
   document.querySelector("[data-switch-project]")?.addEventListener("click", openProjectSwitchPanel);
-}
-
-function bindSidebarGallery() {
-  document.querySelector("[data-open-gallery-manager]")?.addEventListener("click", openGalleryManagerModal);
-  document.querySelectorAll("[data-preview-image]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const image = state.images.find((item) => Number(item.id) === Number(button.dataset.previewImage));
-      if (image) openImagePreviewModal(image);
-    });
-  });
-}
-
-function openGalleryManagerModal() {
-  showContentModal({
-    title: state.user?.role === "admin" ? "图片库管理（全部）" : "图片库管理",
-    className: "gallery-library-modal",
-    body: `
-      <div class="gallery-library">
-        <label class="editor-upload-drop gallery-modal-upload">
-          <input id="gallery-modal-upload" type="file" accept="image/*">
-          <span class="upload-cloud">⇧</span>
-          <b>拖拽图片到此处上传</b>
-          <em>或点击上传</em>
-        </label>
-        <div class="gallery-modal-grid">
-          ${state.images.length ? state.images.map(galleryModalImageMarkup).join("") : `<div class="empty-state">还没有图片</div>`}
-        </div>
-      </div>
-    `,
-    onMount(root, close) {
-      root.querySelector("#gallery-modal-upload")?.addEventListener("change", async (event) => {
-        await _uploadImage(event);
-        close("refresh");
-        openGalleryManagerModal();
-      });
-
-      root.querySelectorAll("[data-gallery-preview]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const image = state.images.find((item) => Number(item.id) === Number(button.dataset.galleryPreview));
-          if (image) openImagePreviewModal(image);
-        });
-      });
-
-      root.querySelectorAll("[data-gallery-delete]").forEach((button) => {
-        button.addEventListener("click", async (event) => {
-          event.stopPropagation();
-          await _deleteImage(button.dataset.galleryDelete);
-          close("refresh");
-          openGalleryManagerModal();
-        });
-      });
-    }
-  });
-}
-
-function galleryModalImageMarkup(image) {
-  const locked = image.filename === "image4.png";
-  return `
-    <article class="gallery-modal-card">
-      <button class="gallery-modal-thumb" type="button" data-gallery-preview="${image.id}">
-        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
-      </button>
-      <div class="gallery-modal-meta">
-        <span>${escapeHtml(image.originalName)}</span>
-        <button class="icon-button danger" type="button" ${locked ? "disabled" : ""} title="删除" data-gallery-delete="${image.id}">×</button>
-      </div>
-    </article>
-  `;
-}
-
-function openImagePreviewModal(image) {
-  showContentModal({
-    title: image.originalName || "图片预览",
-    className: "image-preview-modal",
-    body: `
-      <figure class="image-preview-frame">
-        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
-        <figcaption>${escapeHtml(image.originalName)}</figcaption>
-      </figure>
-    `
-  });
 }
 
 /* ---- 切换项目面板 ---- */
@@ -364,6 +257,7 @@ function switchCardMarkup(project) {
       imageSrc: (img) => img.url,
       logoSrc: "/assets/logo.png",
       draggable: false,
+      assetImages: state.images,
       labels: translation?.labels,
     });
     const dir = translation?.rtl ? ' dir="rtl"' : "";

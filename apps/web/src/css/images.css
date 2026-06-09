@@ -1,5 +1,12 @@
 /* === 图片模块 + 产品卡片 === */
 
+.product-strip-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 12px 0 0;
+}
+
 .product-strip {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -86,9 +93,151 @@
   display: grid;
 }
 
+.quote-item-image-editor {
+  display: grid;
+  grid-template-columns: 1fr 74px auto;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #e3eaf4;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.quote-item-image-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.quote-item-image-copy strong {
+  color: #1d2738;
+  font-size: 13px;
+}
+
+.quote-item-image-copy span {
+  overflow: hidden;
+  color: #728096;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-item-image-thumb {
+  display: grid;
+  width: 74px;
+  height: 56px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #8793a6;
+  font-size: 24px;
+}
+
+.quote-item-image-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.quote-item-image-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .image-editor {
   display: grid;
   gap: 18px;
+}
+
+.gallery-layout-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.gallery-layout-options {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gallery-layout-option {
+  display: grid;
+  gap: 7px;
+  min-height: 84px;
+  padding: 9px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #273246;
+}
+
+.gallery-layout-option.active {
+  border-color: var(--accent);
+  background: #edf4ff;
+  box-shadow: 0 0 0 3px rgba(29, 102, 255, 0.1);
+}
+
+.gallery-layout-option em {
+  overflow: hidden;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-icon {
+  display: grid;
+  width: 42px;
+  height: 30px;
+  margin: 0 auto;
+  gap: 3px;
+}
+
+.layout-icon i {
+  min-width: 0;
+  min-height: 0;
+  border: 2px solid #313947;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.layout-single-full {
+  grid-template-columns: 1fr;
+}
+
+.layout-two-columns {
+  grid-template-columns: 1fr 1fr;
+}
+
+.layout-two-rows {
+  grid-template-rows: 1fr 1fr;
+}
+
+.layout-hero-left,
+.layout-hero-top,
+.layout-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.layout-single-full i:not(:first-child),
+.layout-two-columns i:nth-child(n+3),
+.layout-two-rows i:nth-child(n+3) {
+  display: none;
+}
+
+.layout-hero-left i:first-child {
+  grid-row: 1 / -1;
+}
+
+.layout-hero-top i:first-child {
+  grid-column: 1 / -1;
 }
 
 .inserted-image-panel,
@@ -99,7 +248,7 @@
 
 .selected-images,
 .image-editor .choose-grid {
-  max-height: 280px;
+  max-height: 480px;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -178,4 +327,98 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+/* 图库网格第一位 "+" 上传卡片 */
+.image-upload-new {
+  border: 2px dashed #d0d8e8 !important;
+  background: transparent !important;
+  cursor: pointer;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.image-upload-new:hover {
+  border-color: var(--accent) !important;
+  background: rgba(31, 91, 214, 0.03) !important;
+}
+
+.image-upload-new.drop-hover {
+  border-color: var(--accent) !important;
+  background: #edf4ff !important;
+}
+
+.image-upload-new input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-upload-new-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  color: #8a96a8;
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.image-upload-new:hover .image-upload-new-icon {
+  color: var(--accent);
+}
+
+.image-upload-new > span:last-child {
+  font-size: 12px;
+  color: #8a96a8;
+  font-weight: 500;
+}
+
+.image-upload-new:hover > span:last-child {
+  color: var(--accent);
+}
+
+.product-image-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: min(760px, 76vw);
+  max-height: 620px;
+  overflow-y: auto;
+}
+
+.product-image-pick {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.product-image-pick.selected {
+  border-color: var(--accent);
+  background: #edf4ff;
+}
+
+.product-image-pick img {
+  width: 100%;
+  aspect-ratio: 1.22;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #f7f9fc;
+}
+
+.product-image-pick span {
+  overflow: hidden;
+  color: #30384a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

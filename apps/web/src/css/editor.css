@@ -22,7 +22,7 @@
 .module-sidebar {
   position: relative;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   padding: 15px 12px 12px;
   overflow: hidden;
   transition: padding 0.34s cubic-bezier(.22, 1, .36, 1);
@@ -59,13 +59,11 @@
 }
 
 .editor-layout.sidebar-motion .module-list,
-.editor-layout.sidebar-motion .sidebar-title,
-.editor-layout.sidebar-motion .sidebar-gallery {
+.editor-layout.sidebar-motion .sidebar-title {
   transition: opacity 0.2s ease, transform 0.34s cubic-bezier(.22, 1, .36, 1);
 }
 
 .editor-layout.sidebar-collapsed .module-sidebar {
-  grid-template-rows: auto 1fr;
   padding: 46px 8px 10px;
 }
 
@@ -74,8 +72,7 @@
   right: 14px;
 }
 
-.editor-layout.sidebar-collapsed .sidebar-title,
-.editor-layout.sidebar-collapsed .sidebar-gallery {
+.editor-layout.sidebar-collapsed .sidebar-title {
   display: none;
   opacity: 0;
   pointer-events: none;
@@ -104,7 +101,7 @@
 .module-list {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 10px;
 }
 
 .module-button {
@@ -112,9 +109,9 @@
   grid-template-columns: 22px 1fr 18px;
   align-items: center;
   column-gap: 10px;
-  height: 40px;
+  height: 44px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   background: #fff;
   color: #253148;
   font-size: 14px;
@@ -201,24 +198,6 @@
   color: var(--accent);
 }
 
-.sidebar-gallery {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #edf1f7;
-}
-
-.sidebar-asset-scroll {
-  height: 96px;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.sidebar-asset-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 .editor-upload-drop {
   position: relative;
   display: grid;
@@ -268,51 +247,6 @@
   font-weight: 800;
 }
 
-.gallery-manage-button {
-  width: 100%;
-  height: 34px;
-}
-
-.sidebar-asset-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.sidebar-asset-card {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fff;
-  color: #4e5a70;
-  text-align: center;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-}
-
-.sidebar-asset-card:hover {
-  border-color: #b7c9e8;
-  box-shadow: 0 6px 14px rgba(40, 60, 94, 0.08);
-  transform: translateY(-1px);
-}
-
-.sidebar-asset-card img {
-  width: 100%;
-  height: 58px;
-  object-fit: cover;
-}
-
-.sidebar-asset-card span {
-  overflow: hidden;
-  padding: 5px 6px 6px;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .module-editor {
   overflow-y: auto;
   overflow-x: hidden;
@@ -325,7 +259,6 @@
 
 .editor-card {
   min-height: 100%;
-  overflow: hidden;
   padding: 0;
   box-shadow: var(--tight-shadow);
 }
@@ -622,4 +555,48 @@
 
 .toolbar-right .preview-switch-btn {
   margin-left: auto;
+}
+
+/* 编辑区日期选择器 */
+
+.ed-date-field .ed-date-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.ed-date-field .ed-date-text {
+  flex: 1;
+  padding-right: 30px;
+}
+
+.ed-date-field .ed-date-picker {
+  position: absolute;
+  right: 28px;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ed-date-field .ed-date-icon {
+  position: absolute;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: #8d96a8;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+
+.ed-date-field .ed-date-icon:hover {
+  color: var(--accent);
+  background: rgba(31, 91, 214, .08);
 }

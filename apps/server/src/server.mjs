@@ -297,7 +297,7 @@ async function handleApi(req, res, url) {
         sendJson(res, 404, { error: "项目不存在" });
         return;
       }
-      const images = getImagesByIds(project.data.selectedImageIds || []);
+      const images = getImagesByIds(quoteRenderImageIds(project.data));
       const pdf = await exportPdf(project, images);
       res.writeHead(200, {
         "Content-Type": "application/pdf",
@@ -314,7 +314,7 @@ async function handleApi(req, res, url) {
         sendJson(res, 404, { error: "项目不存在" });
         return;
       }
-      const images = getImagesByIds(project.data.selectedImageIds || []);
+      const images = getImagesByIds(quoteRenderImageIds(project.data));
       sendHtml(res, renderQuoteHtml(project, images));
       return;
     }
@@ -346,6 +346,15 @@ const HOIST_PACKAGE = "Packed in strong plywood crate.";
 function getPackageText(productId) {
   const hoistIds = ["product_1", "product_2", "product_3", "product_4"];
   return hoistIds.includes(productId) ? HOIST_PACKAGE : CRANE_PACKAGE;
+}
+
+function quoteRenderImageIds(data = {}) {
+  const ids = new Set((data.selectedImageIds || []).map((id) => Number(id)).filter(Number.isFinite));
+  for (const item of data.quoteItems || []) {
+    const id = Number(item?.imageId);
+    if (Number.isFinite(id)) ids.add(id);
+  }
+  return [...ids];
 }
 
 function createDefaultProjectData(product, user) {

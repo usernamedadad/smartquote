@@ -6,19 +6,22 @@ import {
   escapeHtml, splitParameterValue, setByPath, productPreviewUrl, productSeriesLabel,
   normalizeTerms, calculateTotalAmount, isLineOnlyParameter, normalizeGalleryLayout,
   normalizeQuoteItems, createQuoteItemFromProduct, createCraneSupportQuoteItems,
-  updateQuoteTotals, recalcAccessoryTotal, sumAmountStrings, parseAmountNumber, extractNumeric
+  updateQuoteTotals, recalcAccessoryTotal, sumAmountStrings, parseAmountNumber, extractNumeric,
+  GALLERY_PRESETS, normalizeGalleryPreset
 } from "../utils.js";
 import { parameterIconSvg } from "../icons.js";
 import { recordUndoSnapshot } from "../history.js";
 import { markDirty } from "./preview.js";
-import { showAppModal } from "../ui.js";
+import { showAppModal, showContentModal } from "../ui.js";
 import { showBulkImportModal, parseImportText } from "../bulk-import.js";
 import { emptyMarkup } from "./projects.js";
 
-let _renderEditorPage;
+let _renderEditorPage, _uploadImageFromFile, _deleteImage;
 
-export function registerEditorModulesCallbacks({ renderEditorPage }) {
+export function registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage }) {
   _renderEditorPage = renderEditorPage;
+  _uploadImageFromFile = uploadImageFromFile;
+  _deleteImage = deleteImage;
 }
 
 /* ---- 模块内容分发 ---- */
@@ -45,7 +48,7 @@ function basicEditorMarkup(data) {
   return `
     <div class="form-grid two">
       ${fieldMarkup("报价单编号", "quoteMeta.quoteNo", data.quoteMeta.quoteNo)}
-      ${fieldMarkup("报价日期", "quoteMeta.date", data.quoteMeta.date)}
+      ${dateFieldMarkup("报价日期", "quoteMeta.date", data.quoteMeta.date)}
       ${fieldMarkup("有效期", "quoteMeta.validity", data.quoteMeta.validity)}
       ${fieldMarkup("标题", "quoteMeta.title", data.quoteMeta.title)}
     </div>
@@ -83,22 +86,24 @@ function parametersEditorMarkup(data) {
   const items = normalizeQuoteItems(data, state.products);
   const productOrderMap = buildProductOrderMap(items);
   return `
-    <h3 class="form-section-title">产品类型</h3>
-    <div class="product-strip">
-      ${state.products.map((product) => {
-        const order = productOrderMap.get(product.id);
-        const isActive = order != null;
-        return `
-          <button class="product-card ${isActive ? "active" : ""}" data-product-id="${product.id}">
-            <span class="product-check">${isActive ? order + 1 : ""}</span>
-            <span class="product-thumb">
-              <img src="${productPreviewUrl(product)}" alt="${escapeHtml(product.cnName)}">
-            </span>
-            <strong>${escapeHtml(product.cnName)}</strong>
-            <small>${escapeHtml(productSeriesLabel(product))}</small>
-          </button>
-        `;
-      }).join("")}
+    <div class="product-strip-sticky">
+      <h3 class="form-section-title">产品类型</h3>
+      <div class="product-strip">
+        ${state.products.map((product) => {
+          const order = productOrderMap.get(product.id);
+          const isActive = order != null;
+          return `
+            <button class="product-card ${isActive ? "active" : ""}" data-product-id="${product.id}">
+              <span class="product-check">${isActive ? order + 1 : ""}</span>
+              <span class="product-thumb">
+                <img src="${productPreviewUrl(product)}" alt="${escapeHtml(product.cnName)}">
+              </span>
+              <strong>${escapeHtml(product.cnName)}</strong>
+              <small>${escapeHtml(productSeriesLabel(product))}</small>
+            </button>
+          `;
+        }).join("")}
+      </div>
     </div>
     <h3 class="form-section-title parameter-heading">参数编辑</h3>
     <div class="quote-item-list">
@@ -136,6 +141,8 @@ function quoteItemEditorMarkup(item, index, allItems) {
 
   const isFirstProduct = !allItems.slice(0, index).some((i) => i.type !== "accessory");
   const isLastProduct = !allItems.slice(index + 1).some((i) => i.type !== "accessory");
+  const builtInKeys = getBuiltInParameterKeys(item.product?.id);
+  const productImage = state.images.find((image) => Number(image.id) === Number(item.imageId));
 
   return `
     <article class="quote-item-card ${collapsed}" data-quote-item="${index}">
@@ -145,6 +152,7 @@ function quoteItemEditorMarkup(item, index, allItems) {
         </span>
         <span class="quote-item-no">${index + 1}</span>
         <strong>${escapeHtml(item.product.enName || "Untitled Item")}</strong>
+        <button class="header-add-accessory" type="button" data-add-accessory="${index}">+ 配件</button>
         <div class="quote-item-hover-actions">
           ${!isFirstProduct ? `<button class="hover-action" type="button" title="上移" data-move-quote-item="${index}:up">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
@@ -163,10 +171,11 @@ function quoteItemEditorMarkup(item, index, allItems) {
           ${itemPricingFieldMarkup("单价", index, "unitPrice", item.pricing.unitPrice)}
           ${itemPricingFieldMarkup("行总价", index, "totalAmount", item.pricing.totalAmount)}
         </div>
+        ${quoteItemImageEditorMarkup(index, productImage)}
         <div class="parameter-list">
-          ${Object.entries(item.parameters || {}).map(([key, value]) => parameterFieldMarkup(key, value, index)).join("")}
+          ${Object.entries(item.parameters || {}).map(([key, value]) => parameterFieldMarkup(key, value, index, builtInKeys)).join("")}
+          <button class="add-param-button" type="button" data-add-param="${index}">+ 添加参数</button>
         </div>
-        <button class="add-accessory-button" type="button" data-add-accessory="${index}">+ 添加配件</button>
       </div>
     </article>
   `;
@@ -290,12 +299,35 @@ function formatPricingInputValue(field, value) {
   return text;
 }
 
-function parameterFieldMarkup(key, value, itemIndex) {
+/** 获取产品模板中内置的参数 key 集合（用于区分可删除的自定义参数） */
+function getBuiltInParameterKeys(productId) {
+  if (!productId) return new Set();
+  const product = state.products.find((p) => p.id === productId);
+  if (!product?.parameters) return new Set();
+  return new Set(Object.keys(product.parameters));
+}
+
+function parameterFieldMarkup(key, value, itemIndex, builtInKeys = new Set()) {
+  const isBuiltIn = builtInKeys.has(key) && key;
+  const delBtn = isBuiltIn ? "" : `<button class="param-delete-btn" type="button" data-delete-param="${itemIndex}:${escapeHtml(key)}" title="删除参数">×</button>`;
+
   if (Array.isArray(value)) {
     return `
       <label class="field-row">
         <span class="field-label"><i>${parameterIconSvg(key)}</i>${escapeHtml(key)}</span>
         <textarea data-item-param-array="${itemIndex}:${escapeHtml(key)}">${escapeHtml(value.join("\n"))}</textarea>
+        ${delBtn}
+      </label>
+    `;
+  }
+
+  /* 自定义参数（key 以 __custom_ 开头）：左侧标签固定"自定义参数"，右侧编辑值 */
+  if (key.startsWith("__custom_")) {
+    return `
+      <label class="field-row">
+        <span class="field-label"><i>${parameterIconSvg(key)}</i>自定义参数</span>
+        <input data-item-param="${itemIndex}:${escapeHtml(key)}" value="${escapeHtml(value)}" placeholder="输入参数值">
+        ${delBtn}
       </label>
     `;
   }
@@ -303,8 +335,9 @@ function parameterFieldMarkup(key, value, itemIndex) {
   if (isLineOnlyParameter(value)) {
     return `
       <label class="field-row parameter-line-row">
-        <span class="field-label"><i>${parameterIconSvg(key)}</i>整行文本</span>
+        <span class="field-label"><i>${parameterIconSvg(key)}</i>${escapeHtml(key)}</span>
         <input data-item-param-line="${itemIndex}:${escapeHtml(key)}" value="${escapeHtml(key)}">
+        ${delBtn}
       </label>
     `;
   }
@@ -318,6 +351,7 @@ function parameterFieldMarkup(key, value, itemIndex) {
           <input data-item-param-value="${itemIndex}:${escapeHtml(key)}" data-param-unit="${escapeHtml(unit.unit)}" data-param-unit-format="${unit.format}" value="${escapeHtml(unit.text)}">
           <em>${escapeHtml(unit.unit)}</em>
         </span>
+        ${delBtn}
       </label>
     `;
   }
@@ -326,6 +360,7 @@ function parameterFieldMarkup(key, value, itemIndex) {
       <label class="field-row">
         <span class="field-label"><i>${parameterIconSvg(key)}</i>${escapeHtml(key)}</span>
       <input data-item-param="${itemIndex}:${escapeHtml(key)}" value="${escapeHtml(value)}">
+      ${delBtn}
       </label>
   `;
 }
@@ -333,9 +368,16 @@ function parameterFieldMarkup(key, value, itemIndex) {
 function imagesEditorMarkup(data) {
   const selectedIds = data.selectedImageIds || [];
   const selectedImages = selectedIds.map((id) => state.images.find((image) => Number(image.id) === Number(id))).filter(Boolean);
+  const galleryPreset = normalizeGalleryPreset(data);
 
   return `
     <div class="image-editor">
+      <section class="gallery-layout-panel">
+        <h3>图片布局</h3>
+        <div class="gallery-layout-options">
+          ${GALLERY_PRESETS.map((preset) => galleryPresetButtonMarkup(preset, galleryPreset)).join("")}
+        </div>
+      </section>
       <section class="inserted-image-panel">
         <h3>已插入报价单（上下拖动调整顺序）</h3>
         <div class="selected-images" data-drop-target>
@@ -345,10 +387,42 @@ function imagesEditorMarkup(data) {
       <section class="image-library-panel">
         <h3>${state.user?.role === "admin" ? "全部图库" : "我的图库"}</h3>
         <div class="choose-grid">
+          <label class="choose-image image-upload-new" data-upload-drop>
+            <input id="image-module-upload" type="file" accept="image/*">
+            <span class="image-upload-new-icon">+</span>
+            <span>上传图片</span>
+          </label>
           ${state.images.map((image) => chooseImageMarkup(image, selectedIds)).join("")}
         </div>
       </section>
     </div>
+  `;
+}
+
+function galleryPresetButtonMarkup(preset, current) {
+  return `
+    <button class="gallery-layout-option ${preset.id === current ? "active" : ""}" type="button" data-gallery-preset="${preset.id}" title="${escapeHtml(preset.label)}">
+      <span class="layout-icon layout-${preset.id}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <em>${escapeHtml(preset.label)}</em>
+    </button>
+  `;
+}
+
+function quoteItemImageEditorMarkup(index, image) {
+  return `
+    <section class="quote-item-image-editor">
+      <div class="quote-item-image-copy">
+        <strong>产品图片</strong>
+        <span>${image ? escapeHtml(image.originalName) : "未选择"}</span>
+      </div>
+      <button class="quote-item-image-thumb" type="button" data-select-item-image="${index}" title="选择产品图片">
+        ${image ? `<img src="${image.url}" alt="${escapeHtml(image.originalName)}">` : `<span>+</span>`}
+      </button>
+      <div class="quote-item-image-actions">
+        <button class="ghost-button" type="button" data-select-item-image="${index}">选择</button>
+        ${image ? `<button class="ghost-button" type="button" data-remove-item-image="${index}">移除</button>` : ""}
+      </div>
+    </section>
   `;
 }
 
@@ -478,11 +552,45 @@ function fieldMarkup(label, path, value) {
   `;
 }
 
+function dateFieldMarkup(label, path, value) {
+  const d = value ? new Date(value) : null;
+  const iso = d && !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : "";
+  return `
+    <label class="field ed-date-field">
+      <span>${escapeHtml(label)}</span>
+      <span class="ed-date-wrap">
+        <input data-path="${path}" value="${escapeHtml(value)}" autocomplete="off" class="ed-date-text">
+        <input type="date" class="ed-date-picker" value="${iso}">
+        <span class="ed-date-icon" title="选择日期"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5"/><line x1="1.5" y1="7" x2="14.5" y2="7"/><line x1="5" y1="1" x2="5" y2="4.5"/><line x1="11" y1="1" x2="11" y2="4.5"/></svg></span>
+      </span>
+    </label>
+  `;
+}
+
 /* ---- 字段事件绑定 ---- */
 
 function bindEditorFields(container) {
   container.querySelectorAll("input, textarea").forEach((input) => {
     input.addEventListener("focus", recordUndoSnapshot);
+  });
+
+  /* 日期选择器：图标触发隐藏 date input */
+  container.querySelectorAll(".ed-date-wrap").forEach((wrap) => {
+    const textInput = wrap.querySelector(".ed-date-text");
+    const picker = wrap.querySelector(".ed-date-picker");
+    const icon = wrap.querySelector(".ed-date-icon");
+    if (!picker || !icon) return;
+
+    icon.addEventListener("click", () => {
+      picker.showPicker?.() || picker.focus();
+    });
+
+    picker.addEventListener("input", () => {
+      const d = new Date(picker.value + "T00:00:00");
+      const display = isNaN(d.getTime()) ? picker.value : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      textInput.value = display;
+      textInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
   });
 
   container.querySelectorAll("[data-path]").forEach((input) => {
@@ -560,11 +668,55 @@ function bindEditorFields(container) {
     ));
   });
 
+  /* 删除产品参数 */
+  container.querySelectorAll("[data-delete-param]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const { index, key } = parseIndexedKey(button.dataset.deleteParam);
+      const item = state.activeProject.data.quoteItems?.[index];
+      if (!item || !item.parameters) return;
+      recordUndoSnapshot();
+      delete item.parameters[key];
+      markDirty();
+      rerenderCurrentModule();
+    });
+  });
+
+  /* 空 key 参数重命名 */
+  container.querySelectorAll("[data-item-param-rename]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const { index } = parseIndexedKey(input.dataset.itemParamRename);
+      const item = state.activeProject.data.quoteItems?.[index];
+      if (!item || !item.parameters) return;
+      const newKey = input.value.trim();
+      const value = item.parameters[""] ?? "";
+      delete item.parameters[""];
+      if (newKey) {
+        item.parameters[newKey] = value;
+      } else {
+        item.parameters[""] = value;
+      }
+      markDirty();
+    });
+    input.addEventListener("focus", recordUndoSnapshot);
+  });
+
   container.querySelectorAll("[data-pricing-freight-mode]").forEach((input) => {
     input.addEventListener("change", () => {
       const pricing = state.activeProject.data.pricing;
       pricing.enabledItems = input.checked ? ["subtotal", "freight", "total"] : ["total"];
       updateQuoteTotals(state.activeProject.data);
+      markDirty();
+      rerenderCurrentModule();
+    });
+  });
+
+  container.querySelectorAll("[data-gallery-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      recordUndoSnapshot();
+      state.activeProject.data.layout = state.activeProject.data.layout || {};
+      state.activeProject.data.layout.galleryPreset = button.dataset.galleryPreset;
+      normalizeGalleryLayout(state.activeProject.data, state.images);
       markDirty();
       rerenderCurrentModule();
     });
@@ -614,7 +766,7 @@ function bindEditorFields(container) {
 
   container.querySelectorAll("[data-toggle-quote-item]").forEach((header) => {
     header.addEventListener("click", (event) => {
-      if (event.target.closest("[data-move-quote-item]") || event.target.closest("[data-remove-quote-item]") || event.target.closest("[data-accessory-name]")) return;
+      if (event.target.closest("[data-move-quote-item]") || event.target.closest("[data-remove-quote-item]") || event.target.closest("[data-add-accessory]") || event.target.closest("[data-accessory-name]")) return;
       toggleQuoteItem(Number(header.dataset.toggleQuoteItem));
     });
   });
@@ -638,6 +790,44 @@ function bindEditorFields(container) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       addAccessory(Number(button.dataset.addAccessory));
+    });
+  });
+
+  container.querySelectorAll("[data-select-item-image]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openQuoteItemImagePicker(Number(button.dataset.selectItemImage));
+    });
+  });
+
+  container.querySelectorAll("[data-remove-item-image]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const item = state.activeProject.data.quoteItems?.[Number(button.dataset.removeItemImage)];
+      if (!item || item.type === "accessory") return;
+      recordUndoSnapshot();
+      item.imageId = "";
+      markDirty();
+      rerenderCurrentModule();
+    });
+  });
+
+  container.querySelectorAll("[data-add-param]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const index = Number(button.dataset.addParam);
+      const item = state.activeProject.data.quoteItems?.[index];
+      if (!item || item.type === "accessory") return;
+      recordUndoSnapshot();
+      if (!item.parameters || typeof item.parameters !== "object" || Array.isArray(item.parameters)) return;
+      const customKey = `__custom_${Date.now()}`;
+      item.parameters[customKey] = "";
+      markDirty();
+      rerenderCurrentModule();
+      requestAnimationFrame(() => {
+        const input = document.querySelector(`[data-item-param="${index}:${customKey}"]`);
+        if (input) input.focus();
+      });
     });
   });
 
@@ -835,6 +1025,23 @@ function bindEditorFields(container) {
     });
   }
 
+  // 图片上传：点击 / 拖拽
+  container.querySelector("#image-module-upload")?.addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (file && file.type.startsWith("image/")) await _uploadImageFromFile(file);
+  });
+  const uploadDrop = container.querySelector("[data-upload-drop]");
+  if (uploadDrop) {
+    uploadDrop.addEventListener("dragover", (e) => { e.preventDefault(); uploadDrop.classList.add("drop-hover"); });
+    uploadDrop.addEventListener("dragleave", () => uploadDrop.classList.remove("drop-hover"));
+    uploadDrop.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      uploadDrop.classList.remove("drop-hover");
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith("image/")) await _uploadImageFromFile(file);
+    });
+  }
+
   bindSelectedImageButtons(container);
 
   bindSelectedImageRows(container);
@@ -890,6 +1097,7 @@ function selectProduct(productId) {
   const existing = items.filter((item) => item.product?.id === productId);
 
   if (existing.length) {
+    // 产品已存在：移除该产品及其配件
     const removedIds = new Set(existing.map((item) => item.id));
     state.activeProject.data.quoteItems = items.filter((item) => {
       if (item.product?.id === productId) return false;
@@ -902,6 +1110,7 @@ function selectProduct(productId) {
       state.activeProject.data.productParameters = {};
     }
   } else {
+    // 产品不存在：添加新产品
     const additions = product.id === "product_6"
       ? createCraneSupportQuoteItems(state.products)
       : [createQuoteItemFromProduct(product)];
@@ -910,8 +1119,38 @@ function selectProduct(productId) {
 
   updateQuoteTotals(state.activeProject.data);
   syncPackageTerm(state.activeProject.data);
+
+  if (!existing.length) {
+    // 仅添加时：折叠其他卡片，展开新产品及其配件
+    const allItems = state.activeProject.data.quoteItems;
+    const targetIds = new Set();
+    const targetItem = allItems.find((item) => item.product?.id === productId);
+    if (targetItem) {
+      targetIds.add(targetItem.id);
+      allItems.filter((item) => item.parentId === targetItem.id).forEach((a) => targetIds.add(a.id));
+    }
+    allItems.forEach((item) => { item.collapsed = !targetIds.has(item.id); });
+  }
+
   markDirty();
   rerenderCurrentModule();
+
+  // 滚动到对应产品的序号卡片（补偿 sticky 产品条高度）
+  const allItems = state.activeProject.data.quoteItems;
+  const targetIndex = allItems.findIndex((item) => item.product?.id === productId);
+  if (targetIndex >= 0) {
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`[data-quote-item="${targetIndex}"]`);
+      const sticky = document.querySelector(".product-strip-sticky");
+      if (card && sticky) {
+        const editor = document.querySelector(".module-editor");
+        if (editor) {
+          const offset = card.offsetTop - editor.offsetTop - sticky.offsetHeight - 8;
+          editor.scrollTo({ top: offset, behavior: "smooth" });
+        }
+      }
+    });
+  }
 }
 
 function toggleQuoteItem(index) {
@@ -974,6 +1213,8 @@ function rerenderCurrentModule() {
   renderModuleEditor();
 }
 
+export { addAccessory, selectProduct, removeQuoteItem };
+
 /** 仅刷新已选图片列表（拖拽排序用，避免整模块重渲染抖动） */
 export function rerenderSelectedImages() {
   const container = document.querySelector(".selected-images");
@@ -1023,7 +1264,7 @@ function buildItemGroups(items) {
 function addAccessory(parentIndex) {
   const items = state.activeProject.data.quoteItems || [];
   const parent = items[parentIndex];
-  if (!parent || parent.type === "accessory") return;
+  if (!parent || parent.type === "accessory") return -1;
   recordUndoSnapshot();
 
   const accessory = createQuoteItemFromProduct({
@@ -1032,6 +1273,11 @@ function addAccessory(parentIndex) {
     enName: "Accessory",
     parameters: {}
   }, { type: "accessory", parentId: parent.id, accessoryName: "Accessory" });
+
+  // 自动预置一个可编辑参数行，省去用户再点 "+ Row"
+  if (Array.isArray(accessory.parameters)) {
+    accessory.parameters.push({ name: " ", quantity: "", unitPrice: "", lineTotal: "", unit: "", _new: true });
+  }
 
   let insertAt = parentIndex + 1;
   while (insertAt < items.length && items[insertAt].type === "accessory" && (items[insertAt].parentId === parent.id || items[insertAt].groupId === parent.groupId)) {
@@ -1042,6 +1288,7 @@ function addAccessory(parentIndex) {
   updateQuoteTotals(state.activeProject.data);
   markDirty();
   rerenderCurrentModule();
+  return insertAt;
 }
 
 function updateItemParameter(token, value) {
@@ -1056,11 +1303,24 @@ function renameItemParameter(input) {
   const { index, key: oldKey } = parseIndexedKey(input.dataset.itemParamLine);
   const item = state.activeProject.data.quoteItems?.[index];
   const newKey = input.value.trim();
-  if (!item || !newKey || newKey === oldKey) {
+  if (!item) { markDirty(); return; }
+
+  /* 空占位 key → 正式 key：重命名后刷新编辑器，让 UI 从"输入框"变成正式参数行 */
+  if (!oldKey && newKey) {
+    const entries = Object.entries(item.parameters || {}).map(([k, v]) => k === oldKey ? [newKey, v] : [k, v]);
+    item.parameters = Object.fromEntries(entries);
     markDirty();
+    rerenderCurrentModule();
+    /* 刷新后自动聚焦到新参数行并全选文本 */
+    requestAnimationFrame(() => {
+      const newInput = document.querySelector(`[data-item-param-line="${index}:${CSS.escape(newKey)}"]`);
+      if (newInput) { newInput.focus(); newInput.select(); }
+    });
     return;
   }
-  const entries = Object.entries(item.parameters || {}).map(([key, value]) => key === oldKey ? [newKey, value] : [key, value]);
+
+  if (!newKey || newKey === oldKey) { markDirty(); return; }
+  const entries = Object.entries(item.parameters || {}).map(([k, v]) => k === oldKey ? [newKey, v] : [k, v]);
   item.parameters = Object.fromEntries(entries);
   input.dataset.itemParamLine = `${index}:${newKey}`;
   markDirty();
@@ -1156,6 +1416,41 @@ function reorderImageByDrop(targetId) {
   rerenderSelectedImages();
 }
 
+function openQuoteItemImagePicker(index) {
+  const item = state.activeProject.data.quoteItems?.[index];
+  if (!item || item.type === "accessory") return;
+
+  showContentModal({
+    title: "选择产品图片",
+    className: "product-image-picker-modal",
+    body: `
+      <div class="product-image-picker-grid">
+        ${state.images.length ? state.images.map((image) => productImagePickMarkup(image, item.imageId)).join("") : `<div class="empty-state">还没有图片</div>`}
+      </div>
+    `,
+    onMount(root, close) {
+      root.querySelectorAll("[data-pick-item-image]").forEach((button) => {
+        button.addEventListener("click", () => {
+          recordUndoSnapshot();
+          item.imageId = Number(button.dataset.pickItemImage);
+          markDirty();
+          close("picked");
+          rerenderCurrentModule();
+        });
+      });
+    }
+  });
+}
+
+function productImagePickMarkup(image, currentId) {
+  return `
+    <button class="product-image-pick ${Number(image.id) === Number(currentId) ? "selected" : ""}" type="button" data-pick-item-image="${image.id}">
+      <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
+      <span>${escapeHtml(image.originalName)}</span>
+    </button>
+  `;
+}
+
 async function importModuleText(moduleId) {
   const text = await showBulkImportModal(moduleId);
   if (!text) return;
@@ -1175,4 +1470,78 @@ async function importModuleText(moduleId) {
   updates.forEach(({ path, value }) => setByPath(state.activeProject.data, path, value));
   markDirty();
   rerenderCurrentModule();
+}
+
+/* ---- 图库管理弹窗（从 editor.js 迁移） ---- */
+
+function openGalleryManagerModal() {
+  showContentModal({
+    title: state.user?.role === "admin" ? "图片库管理（全部）" : "图片库管理",
+    className: "gallery-library-modal",
+    body: `
+      <div class="gallery-library">
+        <label class="editor-upload-drop gallery-modal-upload">
+          <input id="gallery-modal-upload" type="file" accept="image/*">
+          <span class="upload-cloud">⇧</span>
+          <b>拖拽图片到此处上传</b>
+          <em>或点击上传</em>
+        </label>
+        <div class="gallery-modal-grid">
+          ${state.images.length ? state.images.map(galleryModalImageMarkup).join("") : `<div class="empty-state">还没有图片</div>`}
+        </div>
+      </div>
+    `,
+    onMount(root, close) {
+      root.querySelector("#gallery-modal-upload")?.addEventListener("change", async (event) => {
+        const file = event.currentTarget.files?.[0];
+        if (file && file.type.startsWith("image/")) {
+          await _uploadImageFromFile(file);
+          close("refresh");
+          openGalleryManagerModal();
+        }
+      });
+      root.querySelectorAll("[data-gallery-preview]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const image = state.images.find((item) => Number(item.id) === Number(button.dataset.galleryPreview));
+          if (image) openImagePreviewModal(image);
+        });
+      });
+      root.querySelectorAll("[data-gallery-delete]").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          await _deleteImage(button.dataset.galleryDelete);
+          close("refresh");
+          openGalleryManagerModal();
+        });
+      });
+    }
+  });
+}
+
+function galleryModalImageMarkup(image) {
+  const locked = image.filename === "image4.png";
+  return `
+    <article class="gallery-modal-card">
+      <button class="gallery-modal-thumb" type="button" data-gallery-preview="${image.id}">
+        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
+      </button>
+      <div class="gallery-modal-meta">
+        <span>${escapeHtml(image.originalName)}</span>
+        <button class="icon-button danger" type="button" ${locked ? "disabled" : ""} title="删除" data-gallery-delete="${image.id}">×</button>
+      </div>
+    </article>
+  `;
+}
+
+function openImagePreviewModal(image) {
+  showContentModal({
+    title: image.originalName || "图片预览",
+    className: "image-preview-modal",
+    body: `
+      <figure class="image-preview-frame">
+        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
+        <figcaption>${escapeHtml(image.originalName)}</figcaption>
+      </figure>
+    `
+  });
 }

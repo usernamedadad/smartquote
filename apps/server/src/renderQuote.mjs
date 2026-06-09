@@ -48,6 +48,14 @@ body {
 ${layoutCss}
 ${contentCss}
 
+/* PDF: 去掉画廊图片的白色边框（预览中用于布局定义） */
+.quote-sheet .gallery figure {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
+}
+
 @page {
   margin: 0;
 }
@@ -83,10 +91,15 @@ export function renderQuoteHtml(project, images = []) {
   normalizeGalleryLayout(renderData, images);
   const logoSrc = dataUriFor(path.join("templates", "logo.png"), "image/png");
   const css = quoteExportCss();
+  const imageMap = new Map(images.map((image) => [Number(image.id), image]));
+  const galleryImages = (renderData.selectedImageIds || [])
+    .map((id) => imageMap.get(Number(id)))
+    .filter(Boolean);
 
-  const body = quoteBodyMarkup(renderData, images, "", {
+  const body = quoteBodyMarkup(renderData, galleryImages, "", {
     imageSrc: (image) => dataUriFor(image.storagePath, image.mimeType),
     logoSrc,
+    assetImages: images,
     draggable: false,
     heroTitleFallback: "QUOTATION",
     labels: translation?.labels,

@@ -119,11 +119,27 @@
 .param-control {
   display: grid;
   grid-template-columns: 1fr 78px;
+  border-radius: 6px;
+  transition: box-shadow 0.16s ease;
+}
+
+.param-control:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(29, 102, 255, 0.34);
 }
 
 .param-control input {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+  box-shadow: none;
+}
+
+.param-control:focus-within input,
+.param-control:focus-within em {
+  border-color: var(--accent);
+}
+
+.param-control input:focus {
+  box-shadow: none;
 }
 
 .param-control em {
@@ -143,10 +159,16 @@
 .money-control {
   display: grid;
   grid-template-columns: 38px 1fr;
+  border-radius: 6px;
+  transition: box-shadow 0.16s ease;
 }
 
 .money-control.with-suffix {
   grid-template-columns: auto 1fr auto;
+}
+
+.money-control:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(29, 102, 255, 0.34);
 }
 
 .money-control em,
@@ -179,10 +201,21 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: none;
 }
 
 .money-control:not(.with-suffix) input {
   border-radius: 0 6px 6px 0;
+}
+
+.money-control:focus-within em,
+.money-control:focus-within input,
+.money-control:focus-within b {
+  border-color: var(--accent);
+}
+
+.money-control input:focus {
+  box-shadow: none;
 }
 
 .checkbox-control {
@@ -198,6 +231,7 @@
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
+  box-shadow: none;
 }
 
 .field-row textarea {
@@ -454,6 +488,112 @@
   background: #f2f7ff;
 }
 
+.header-add-accessory {
+  margin-left: 8px;
+  padding: 2px 10px;
+  border: 1px solid #cdd5e2;
+  border-radius: 12px;
+  background: #fff;
+  color: #5b6e87;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
+}
+
+.header-add-accessory:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #eef3fc;
+}
+
+.add-param-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  margin-top: 6px;
+  border: 1px dashed #d0d9e8;
+  border-radius: 6px;
+  background: #fafcff;
+  color: #5b6e87;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.add-param-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #f2f7ff;
+}
+
+/* 参数删除按钮 */
+.param-delete-btn {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #b0b8c8;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s, color .15s, background .15s;
+}
+
+.field-row:hover .param-delete-btn {
+  opacity: 1;
+}
+
+.param-delete-btn:hover {
+  background: #fee;
+  color: #e53;
+}
+
+/* 空 key 新参数行 */
+.param-new-field {
+  grid-template-columns: 1fr auto;
+  min-height: 44px;
+}
+
+.param-new-field input {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed #c5cfe0;
+  border-radius: 5px;
+  background: #fafcfe;
+  font: inherit;
+  font-size: 13px;
+  color: #1d2738;
+  outline: 0;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+
+.param-new-field input::placeholder {
+  color: #a8b4c6;
+}
+
+.param-new-field input:focus {
+  border-style: solid;
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(31, 91, 214, .18);
+}
+
+.param-new-field .param-delete-btn {
+  opacity: 1;
+}
+
 .param-unit-field {
   flex: 0 0 auto;
   display: flex;
@@ -476,6 +616,7 @@
 .param-unit-field input:focus {
   border-color: var(--primary, #1f5bd6);
   outline: none;
+  box-shadow: inset 0 0 0 1px rgba(31, 91, 214, .18);
 }
 
 .accessory-param-list {
@@ -614,11 +755,12 @@
   border: 1px solid #e2e8f2;
   border-radius: 5px;
   background: #fff;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .param-field:focus-within .param-input-wrap {
   border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(29, 102, 255, 0.22);
 }
 
 .param-input-wrap em {
@@ -636,6 +778,11 @@
   background: transparent;
   font-size: 13px;
   outline: none;
+  box-shadow: none;
+}
+
+.param-input-wrap input:focus {
+  box-shadow: none;
 }
 
 .param-input-wrap input[readonly] {

@@ -2,15 +2,28 @@
  * 报价预览：渲染、缩放、拖拽排序、markDirty
  */
 import { state } from "../state.js";
-import { normalizeGalleryLayout, normalizeQuoteItems } from "../utils.js";
+import {
+  normalizeGalleryLayout, normalizeQuoteItems, escapeHtml, productPreviewUrl,
+  calculateTotalAmount, recalcAccessoryTotal, updateQuoteTotals, parseAmountNumber
+} from "../utils.js";
 import { quoteBodyMarkup, normalizeQuoteLayout } from "../quote-template.js";
 import { recordUndoSnapshot } from "../history.js";
 
 let previewRenderFrame = 0;
 let _rerenderSelectedImages;
+let _addAccessory;
+let _selectProduct;
+let _switchToModule;
+let _removeQuoteItem;
+let _refreshEditor;
 
-export function registerPreviewCallbacks({ rerenderSelectedImages }) {
+export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor }) {
   _rerenderSelectedImages = rerenderSelectedImages;
+  _addAccessory = addAccessory;
+  _selectProduct = selectProduct;
+  _removeQuoteItem = removeQuoteItem;
+  _switchToModule = switchToModule;
+  _refreshEditor = refreshEditor;
 }
 
 export function markDirty() {
@@ -23,6 +36,46 @@ export function markDirty() {
   const projectName = document.querySelector("#topbar-project-name");
   if (projectName) projectName.textContent = state.activeProject?.projectName || "";
   scheduleQuotePreviewRender();
+}
+
+/** 更新 dirty 标记但不触发预览重渲染（用于预览区内联编辑） */
+export function quietDirty() {
+  state.dirty = true;
+  if (state.activeProject?.data?.translation) {
+    delete state.activeProject.data.translation;
+  }
+  const status = document.querySelector("#save-state");
+  if (status) status.textContent = "未保存";
+  const projectName = document.querySelector("#topbar-project-name");
+  if (projectName) projectName.textContent = state.activeProject?.projectName || "";
+  /* 不调用 scheduleQuotePreviewRender() */
+}
+
+let _pendingFocusTarget = null;
+
+/** 记录下次重渲染后需要自动聚焦的元素选择器 */
+export function schedulePreviewRefocus(selector) {
+  _pendingFocusTarget = selector;
+}
+
+/** 靶向更新配件行总价单元格 */
+function updateLineTotalCell(preview, itemIndex, paramIndex, value) {
+  const cell = preview.querySelector(`[data-linetotal-cell="${itemIndex}:${paramIndex}"]`);
+  if (cell) cell.textContent = String(value || "").trim();
+}
+
+/** 靶向更新汇总金额 */
+function updateSummaryCells(preview) {
+  const pricing = updateQuoteTotals(state.activeProject.data);
+  const freightMode = (pricing.enabledItems || []).includes("freight");
+  const summaryLines = preview.querySelectorAll(".summary-line strong");
+  if (freightMode && summaryLines.length >= 3) {
+    summaryLines[0].textContent = pricing.subtotal || "";
+    summaryLines[1].textContent = pricing.freight || "";
+    summaryLines[2].textContent = pricing.totalAmount || pricing.subtotal || "";
+  } else if (summaryLines.length >= 1) {
+    summaryLines[0].textContent = pricing.totalAmount || pricing.subtotal || "";
+  }
 }
 
 function scheduleQuotePreviewRender() {
@@ -55,7 +108,9 @@ export function renderQuotePreview() {
     imageSrc: (img) => img.url,
     logoSrc: "/assets/logo.png",
     draggable: true,
+    interactive: true,
     galleryClasses: "preview-gallery custom-gallery-layout",
+    assetImages: state.images,
     labels: translation?.labels,
   });
 
@@ -63,6 +118,19 @@ export function renderQuotePreview() {
   preview.innerHTML = `<main class="sheet quote-sheet"${dir} aria-label="Quotation sheet">${body}</main>`;
   applyPreviewZoom();
   bindPreviewDragSorting(preview);
+  bindPreviewInteractiveActions(preview);
+  bindSectionClickNavigation(preview);
+  bindPreviewInlineEditing(preview);
+
+  /* 结构性操作后自动聚焦新输入 */
+  if (_pendingFocusTarget) {
+    const selector = _pendingFocusTarget;
+    _pendingFocusTarget = null;
+    requestAnimationFrame(() => {
+      const el = preview.querySelector(selector);
+      if (el) { el.focus(); el.select?.(); }
+    });
+  }
 }
 
 export function setPreviewZoom(value) {
@@ -226,4 +294,357 @@ function reorderPreviewGalleryImage(sourceId, targetId) {
   markDirty();
   // 同步刷新编辑区已选图片列表
   if (typeof _rerenderSelectedImages === "function") _rerenderSelectedImages();
+}
+
+/* ---- 预览区快速操作（添加配件/产品） ---- */
+
+function bindPreviewInteractiveActions(preview) {
+  preview.querySelectorAll("[data-add-accessory]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const parentIndex = Number(btn.dataset.addAccessory);
+      if (typeof _addAccessory === "function") {
+        const newIndex = _addAccessory(parentIndex);
+        if (newIndex >= 0) schedulePreviewRefocus(`[data-edit-acc-name="${newIndex}:0"]`);
+      }
+    });
+  });
+
+  const addProductBtn = preview.querySelector("[data-add-product]");
+  if (addProductBtn) {
+    addProductBtn.addEventListener("click", () => showProductPicker());
+  }
+
+  preview.querySelectorAll("[data-remove-preview-item]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (typeof _removeQuoteItem === "function") _removeQuoteItem(Number(btn.dataset.removePreviewItem));
+    });
+  });
+}
+
+function showProductPicker() {
+  if (!state.products?.length || !state.activeProject) return;
+
+  /* 关闭已打开的面板 */
+  closeProductPicker();
+
+  const existingIds = new Set(
+    (state.activeProject.data.quoteItems || [])
+      .filter((i) => i.type === "product")
+      .map((i) => i.product?.id)
+  );
+  const available = state.products.filter((p) => !existingIds.has(p.id));
+  if (!available.length) return;
+
+  const actionTd = document.querySelector("[data-add-product]")?.closest("td");
+  if (!actionTd) return;
+
+  const cards = available.map((p) => `
+    <button class="picker-product-card" data-pick-product="${p.id}">
+      <img src="${productPreviewUrl(p)}" alt="${escapeHtml(p.cnName)}">
+      <span>${escapeHtml(p.cnName)}</span>
+    </button>`
+  ).join("");
+
+  /* 保存原始内容以便关闭时恢复 */
+  const originalHtml = actionTd.innerHTML;
+  actionTd.dataset.originalContent = originalHtml;
+
+  /* 替换为产品选择面板 */
+  actionTd.innerHTML = `<div class="preview-product-panel">${cards}</div>`;
+
+  const panel = actionTd.querySelector(".preview-product-panel");
+
+  /* 点击选择产品 */
+  panel.querySelectorAll("[data-pick-product]").forEach((card) => {
+    card.addEventListener("click", () => {
+      if (typeof _selectProduct === "function") _selectProduct(card.dataset.pickProduct);
+      closeProductPicker();
+    });
+  });
+
+  /* Escape 关闭 */
+  const closeOnEsc = (e) => {
+    if (e.key === "Escape") {
+      closeProductPicker();
+      document.removeEventListener("keydown", closeOnEsc);
+    }
+  };
+  document.addEventListener("keydown", closeOnEsc);
+}
+
+function closeProductPicker() {
+  document.querySelectorAll(".preview-product-panel").forEach((panel) => {
+    const td = panel.closest("td");
+    if (td?.dataset.originalContent) {
+      td.innerHTML = td.dataset.originalContent;
+      delete td.dataset.originalContent;
+      /* 重新绑定按钮事件 */
+      const btn = td.querySelector("[data-add-product]");
+      if (btn) btn.addEventListener("click", () => showProductPicker());
+    } else {
+      panel.remove();
+    }
+  });
+}
+
+/* ---- 预览区点击 section 跳转编辑器对应模块 ---- */
+
+const SECTION_TO_MODULE = {
+  basic: "basic",
+  pricing: "parameters",
+  gallery: "images",
+  terms: "terms",
+  footer: "footer",
+};
+
+const PARTY_TO_MODULE = {
+  from: "company",
+  to: "customer",
+};
+
+function bindSectionClickNavigation(preview) {
+  if (typeof _switchToModule !== "function") return;
+
+  /* Party 卡片精确映射 */
+  preview.querySelectorAll("[data-preview-party]").forEach((card) => {
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("input")) return;
+      const moduleId = PARTY_TO_MODULE[card.dataset.previewParty];
+      if (moduleId) _switchToModule(moduleId);
+    });
+  });
+
+  /* Section 级别映射 */
+  preview.querySelectorAll("[data-preview-section]").forEach((section) => {
+    section.addEventListener("click", (event) => {
+      if (event.target.closest("[data-preview-party]")) return;
+      if (event.target.closest("[data-preview-item]")) return;
+      if (event.target.closest("button")) return;
+      if (event.target.closest("input")) return;
+      const sectionId = section.dataset.previewSection;
+      const moduleId = SECTION_TO_MODULE[sectionId];
+      if (moduleId) _switchToModule(moduleId);
+    });
+  });
+
+  /* 产品/配件行点击 → 跳转 parameters 模块并滚动到对应卡片 */
+  preview.querySelectorAll("[data-preview-item]").forEach((row) => {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      if (event.target.closest("input")) return;
+      const itemIndex = Number(row.dataset.previewItem);
+      _switchToModule("parameters", itemIndex);
+    });
+  });
+}
+
+/* ---- 预览区内联编辑 ---- */
+
+/** 解析 "INDEX:KEY" 格式的 token（与 editor-modules 的 parseIndexedKey 一致） */
+function parseEditKey(token) {
+  const sep = String(token || "").indexOf(":");
+  return { index: Number(String(token || "").slice(0, sep)), key: String(token || "").slice(sep + 1) };
+}
+
+function bindPreviewInlineEditing(preview) {
+  const data = state.activeProject?.data;
+  if (!data) return;
+
+  /* 日期选择器：点击日历图标触发原生 date input */
+  const dateInput = preview.querySelector("[data-edit-date]");
+  const dateIcon = preview.querySelector(".pe-date-icon");
+  if (dateInput && dateIcon) {
+    dateIcon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dateInput.showPicker?.() || dateInput.focus();
+    });
+    dateInput.addEventListener("input", () => {
+      if (!data.quoteMeta) data.quoteMeta = {};
+      const iso = dateInput.value; // YYYY-MM-DD
+      const d = new Date(iso + "T00:00:00");
+      const display = isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      data.quoteMeta.date = display;
+      /* 同步显示文本（第一个文本节点） */
+      const wrap = dateInput.closest(".pe-date-wrap");
+      if (wrap) wrap.firstChild.textContent = display;
+      quietDirty();
+    });
+    dateInput.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    dateInput.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  /* 产品自定义参数编辑（<input> 输入框） */
+  preview.querySelectorAll("[data-edit-param]").forEach((input) => {
+    input.addEventListener("focus", recordUndoSnapshot);
+    input.addEventListener("input", () => {
+      const { index, key } = parseEditKey(input.dataset.editParam);
+      const item = data.quoteItems?.[index];
+      if (!item?.parameters) return;
+      item.parameters[key] = input.value;
+      quietDirty();
+    });
+    input.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    input.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* + Param 按钮 */
+  preview.querySelectorAll("[data-add-param-preview]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.addParamPreview);
+      const item = data.quoteItems?.[index];
+      if (!item || item.type === "accessory") return;
+      recordUndoSnapshot();
+      const customKey = `__custom_${Date.now()}`;
+      item.parameters[customKey] = "";
+      schedulePreviewRefocus(`[data-edit-param="${index}:${customKey}"]`);
+      markDirty();
+      if (_refreshEditor) _refreshEditor();
+    });
+  });
+
+  /* 删除自定义参数 */
+  preview.querySelectorAll("[data-delete-param]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const { index, key } = parseEditKey(btn.dataset.deleteParam);
+      const item = data.quoteItems?.[index];
+      if (!item?.parameters || !(key in item.parameters)) return;
+      recordUndoSnapshot();
+      delete item.parameters[key];
+      markDirty();
+      if (_refreshEditor) _refreshEditor();
+    });
+  });
+
+  /* 配件名称编辑 */
+  preview.querySelectorAll("[data-edit-acc-title]").forEach((input) => {
+    input.addEventListener("focus", recordUndoSnapshot);
+    input.addEventListener("input", () => {
+      const index = Number(input.dataset.editAccTitle);
+      const item = data.quoteItems?.[index];
+      if (!item) return;
+      item.accessoryName = input.value;
+      if (item.product) item.product.enName = input.value;
+      quietDirty();
+    });
+    input.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    input.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* 配件参数名编辑 */
+  preview.querySelectorAll("[data-edit-acc-name]").forEach((el) => {
+    el.addEventListener("focus", recordUndoSnapshot);
+    el.addEventListener("input", () => {
+      const { index, key } = parseEditKey(el.dataset.editAccName);
+      const item = data.quoteItems?.[index];
+      if (!item || !Array.isArray(item.parameters)) return;
+      const param = item.parameters[Number(key)];
+      if (param) param.name = el.value;
+      quietDirty();
+    });
+    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* 配件数量编辑（仅数字） */
+  preview.querySelectorAll("[data-edit-acc-qty]").forEach((el) => {
+    el.addEventListener("focus", recordUndoSnapshot);
+    el.addEventListener("input", () => {
+      const cleaned = (el.value || "").replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+      if (cleaned !== el.value) el.value = cleaned;
+      const { index, key } = parseEditKey(el.dataset.editAccQty);
+      const item = data.quoteItems?.[index];
+      if (!item || !Array.isArray(item.parameters)) return;
+      const param = item.parameters[Number(key)];
+      if (!param) return;
+      const unit = param.unit || "";
+      const qtyNum = parseFloat(cleaned) || 0;
+      const unitForm = unit ? (qtyNum === 1 ? unit : `${unit}s`) : "";
+      param.quantity = cleaned ? (unitForm ? `${cleaned} ${unitForm}` : cleaned) : "";
+      param.lineTotal = calculateTotalAmount(param.quantity, param.unitPrice) || "";
+      updateLineTotalCell(preview, index, key, param.lineTotal);
+      recalcAccessoryTotal(item);
+      updateSummaryCells(preview);
+      quietDirty();
+    });
+    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* 配件单价编辑（仅数字） */
+  preview.querySelectorAll("[data-edit-acc-price]").forEach((el) => {
+    el.addEventListener("focus", recordUndoSnapshot);
+    el.addEventListener("input", () => {
+      const cleaned = (el.value || "").replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+      if (cleaned !== el.value) el.value = cleaned;
+      const { index, key } = parseEditKey(el.dataset.editAccPrice);
+      const item = data.quoteItems?.[index];
+      if (!item || !Array.isArray(item.parameters)) return;
+      const param = item.parameters[Number(key)];
+      if (!param) return;
+      const unit = param.unit || "";
+      param.unitPrice = cleaned ? (unit ? `$${cleaned}/${unit}` : `$${cleaned}`) : "";
+      param.lineTotal = calculateTotalAmount(param.quantity, param.unitPrice) || "";
+      updateLineTotalCell(preview, index, key, param.lineTotal);
+      recalcAccessoryTotal(item);
+      updateSummaryCells(preview);
+      quietDirty();
+    });
+    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* 配件单位编辑 */
+  preview.querySelectorAll("[data-edit-acc-unit]").forEach((el) => {
+    el.addEventListener("focus", recordUndoSnapshot);
+    el.addEventListener("input", () => {
+      const { index, key } = parseEditKey(el.dataset.editAccUnit);
+      const item = data.quoteItems?.[index];
+      if (!item || !Array.isArray(item.parameters)) return;
+      const param = item.parameters[Number(key)];
+      if (!param) return;
+      param.unit = el.value.trim();
+      quietDirty();
+    });
+    el.addEventListener("blur", () => { if (_refreshEditor) _refreshEditor(); });
+    el.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  /* + Row 按钮（配件添加参数行） */
+  preview.querySelectorAll("[data-add-acc-row]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.addAccRow);
+      const item = data.quoteItems?.[index];
+      if (!item || item.type !== "accessory") return;
+      recordUndoSnapshot();
+      if (!Array.isArray(item.parameters)) item.parameters = [];
+      /* 清除旧 _new 标记（之前的可编辑行变为纯文本） */
+      item.parameters.forEach((p) => { delete p._new; });
+      const newIdx = item.parameters.length;
+      item.parameters.push({ name: " ", quantity: "", unitPrice: "", lineTotal: "", unit: "", _new: true });
+      schedulePreviewRefocus(`[data-edit-acc-name="${index}:${newIdx}"]`);
+      markDirty();
+      if (_refreshEditor) _refreshEditor();
+    });
+  });
+
+  /* 删除配件参数行（_new 行） */
+  preview.querySelectorAll("[data-delete-acc-row]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const { index, key } = parseEditKey(btn.dataset.deleteAccRow);
+      const item = data.quoteItems?.[index];
+      if (!item || !Array.isArray(item.parameters)) return;
+      const paramIndex = Number(key);
+      if (paramIndex < 0 || paramIndex >= item.parameters.length) return;
+      recordUndoSnapshot();
+      item.parameters.splice(paramIndex, 1);
+      markDirty();
+      if (_refreshEditor) _refreshEditor();
+    });
+  });
 }

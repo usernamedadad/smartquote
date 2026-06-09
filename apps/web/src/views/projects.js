@@ -272,6 +272,7 @@ function miniQuotePreviewMarkup(project) {
       imageSrc: (img) => img.url,
       logoSrc: "/assets/logo.png",
       draggable: false,
+      assetImages: state.images,
       labels: translation?.labels,
     });
     const dir = translation?.rtl ? ' dir="rtl"' : "";
@@ -362,7 +363,7 @@ function openCreateProjectModal(event) {
     skipLabel: "跳过"
   }).then((name) => {
     if (name === null) return;
-    createProject(name, { open: false });
+    createProject(name, { open: true });
   });
 }
 

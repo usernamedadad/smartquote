@@ -39,6 +39,7 @@ export function normalizeTerms(terms = {}) {
 
 export function normalizeGalleryLayout(data, images = []) {
   if (!data.layout || typeof data.layout !== "object") data.layout = {};
+  normalizeGalleryPreset(data);
   const selectedIds = Array.isArray(data.selectedImageIds) ? data.selectedImageIds : [];
   const visibleIds = selectedIds
     .map((id) => Number(id))
@@ -54,6 +55,25 @@ export function normalizeGalleryLayout(data, images = []) {
   });
 
   return data.layout.galleryItems;
+}
+
+export const GALLERY_PRESETS = [
+  { id: "single-full", label: "单张大图" },
+  { id: "two-columns", label: "左右并排" },
+  { id: "two-rows", label: "上下排列" },
+  { id: "hero-left", label: "左大右小" },
+  { id: "hero-top", label: "上大下小" },
+  { id: "grid", label: "宫格" }
+];
+
+const GALLERY_PRESET_IDS = new Set(GALLERY_PRESETS.map((preset) => preset.id));
+
+export function normalizeGalleryPreset(data) {
+  if (!data.layout || typeof data.layout !== "object") data.layout = {};
+  if (!GALLERY_PRESET_IDS.has(data.layout.galleryPreset)) {
+    data.layout.galleryPreset = "grid";
+  }
+  return data.layout.galleryPreset;
 }
 
 export function defaultGalleryLayout(imageIds = []) {
@@ -161,6 +181,7 @@ export function createQuoteItemFromProduct(product, options = {}) {
       cnName: product?.cnName || "",
       enName: product?.enName || ""
     },
+    imageId: options.imageId || "",
     parameters: options.type === "accessory"
       ? normalizeAccessoryParameters(structuredClone(product?.parameters || {}))
       : normalizeProductParameters(structuredClone(product?.parameters || {}), product?.id || ""),
@@ -258,6 +279,7 @@ function legacyQuoteItem(data) {
     product: data.product || {},
     parameters: data.productParameters || {},
     pricing: data.pricing || {},
+    imageId: data.productImageId || "",
     collapsed: false
   };
 }
@@ -284,6 +306,7 @@ function normalizeQuoteItem(item, index) {
       cnName: product.cnName || product.cn_name || "",
       enName: product.enName || product.en_name || source.enName || ""
     },
+    imageId: isAccessory ? "" : (source.imageId || source.productImageId || ""),
     parameters,
     pricing: isAccessory
       ? { totalAmount: pricing.totalAmount || "" }
@@ -312,7 +335,8 @@ function normalizeAccessoryParameters(params) {
       quantity: String(p.quantity || ""),
       unitPrice: String(p.unitPrice || ""),
       lineTotal: String(p.lineTotal || ""),
-      unit: String(p.unit || "")
+      unit: String(p.unit || ""),
+      ...(p._new ? { _new: true } : {})
     }));
   }
   return Object.entries(params || {}).map(([key]) => ({
@@ -467,6 +491,7 @@ export function sanitizeProjectData(data) {
   data.footer = Object.assign({ company: "", website: "", email: "", phone: "" }, data.footer);
   data.selectedImageIds = Array.isArray(data.selectedImageIds) ? data.selectedImageIds : [];
   data.layout = data.layout || {};
+  normalizeGalleryPreset(data);
   if (data.translation && typeof data.translation === "object") {
     data.translation.data = data.translation.data || {};
     data.translation.labels = data.translation.labels || {};
