@@ -18,7 +18,8 @@ export const state = {
   draggingImageId: null,
   previewDrag: null,
   sidebarCollapsed: false,
-  sidebarMotion: false
+  sidebarMotion: false,
+  purePreview: false
 };
 
 export const modules = [

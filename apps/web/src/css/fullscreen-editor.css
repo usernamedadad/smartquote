@@ -85,7 +85,7 @@
   user-select: none;
 }
 
-/* ---- 底部命令栏 ---- */
+/* ---- 底部导航栏（macOS 风格） ---- */
 
 .fse-bar {
   position: absolute;
@@ -93,13 +93,13 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  background: rgba(30, 37, 54, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(30, 37, 54, 0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 6px 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 18px;
+  padding: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   display: none;
 }
 
@@ -107,131 +107,184 @@
   display: block;
 }
 
-.fse-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.fse-bar-hint {
-  text-align: center;
-  padding: 4px 0 2px;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.2);
-  letter-spacing: 0.3px;
-}
-
 .fse-pills {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
 }
 
 .fse-pill {
-  padding: 7px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 16px 8px;
   border: none;
-  border-radius: 10px;
+  border-radius: 14px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s, background 0.2s;
+  transition: color 0.25s ease, background 0.25s ease;
 }
 
 .fse-pill:hover {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.06);
 }
 
 .fse-pill.active {
-  background: #1d66ff;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(29, 102, 255, 0.35);
+  background: rgba(29, 102, 255, 0.16);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .fse-pill-icon {
-  margin-right: 4px;
-  font-size: 12px;
-}
-
-.fse-pill-key {
-  margin-left: 5px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 10px;
-  font-weight: 700;
-  color: inherit;
-  opacity: 0.6;
-}
-
-.fse-pill.active .fse-pill-key {
-  background: rgba(255, 255, 255, 0.15);
-  opacity: 0.8;
-}
-
-.fse-bar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 10px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.fse-bar-lang {
-  padding: 5px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: background 0.25s ease;
 }
 
-.fse-bar-lang:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
+.fse-pill:hover .fse-pill-icon {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.fse-bar-save,
-.fse-bar-export {
-  padding: 7px 16px;
+.fse-pill.active .fse-pill-icon {
+  background: rgba(29, 102, 255, 0.22);
+}
+
+.fse-pill.active .fse-pill-icon svg {
+  stroke: rgba(255, 255, 255, 0.95);
+}
+
+.fse-pill-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  opacity: 0.8;
+}
+
+.fse-pill.active .fse-pill-label {
+  opacity: 1;
+}
+
+/* ---- 迷你工具栏扩展按钮 ---- */
+
+.fse-mini-sep-wide {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 6px;
+}
+
+/* ---- 右上角操作栏 ---- */
+
+/* ---- 右上角操作栏 ---- */
+
+.fse-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 18;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 37, 54, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.preview-panel:fullscreen .fse-actions {
+  display: flex;
+}
+
+.fse-actions-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
 }
 
-.fse-bar-save {
+.fse-actions-btn:hover {
+  color: #fff;
   background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
 }
 
-.fse-bar-save:hover {
-  background: rgba(255, 255, 255, 0.14);
+.fse-actions-btn span {
+  white-space: nowrap;
+}
+
+.fse-actions-export {
+  background: rgba(29, 102, 255, 0.85);
   color: #fff;
 }
 
-.fse-bar-export {
-  background: #1d66ff;
-  color: #fff;
+.fse-actions-export:hover {
+  background: rgba(29, 102, 255, 1);
 }
 
-.fse-bar-export:hover {
-  background: #1a5ae0;
-  transform: translateY(-1px);
+/* ---- 纯净预览退出按钮 ---- */
+
+.fse-pure-exit {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(30, 37, 54, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.fse-pure-exit:hover {
+  background: rgba(30, 37, 54, 0.95);
+  color: #fff;
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.fse-pure-exit svg {
+  opacity: 0.6;
+}
+
+.fse-pure-exit:hover svg {
+  opacity: 1;
+}
+
+.fse-pure-exit span {
+  white-space: nowrap;
 }
 
 /* ---- #5 右侧上下文卡片（暗色主题） ---- */
@@ -390,6 +443,40 @@
   border-color: #1d66ff;
   box-shadow: 0 0 0 2px rgba(29, 102, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* 编号递增按钮 */
+.fse-field--inc {
+  grid-template-columns: 1fr;
+}
+
+.fse-input-wrap {
+  display: flex;
+  gap: 6px;
+}
+
+.fse-input-wrap input {
+  flex: 1;
+  min-width: 0;
+}
+
+.fse-inc-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fse-inc-btn:hover {
+  background: rgba(29, 102, 255, 0.2);
+  color: #60a5fa;
+  border-color: rgba(29, 102, 255, 0.4);
 }
 
 /* 日期字段 */
@@ -572,6 +659,78 @@
   white-space: nowrap;
 }
 
+/* 产品图片行 */
+.fse-product-image-row {
+  margin-top: 6px;
+}
+
+.fse-product-image {
+  position: relative;
+  display: inline-flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.fse-product-image:hover {
+  border-color: rgba(29, 102, 255, 0.4);
+}
+
+.fse-product-image img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  display: block;
+}
+
+.fse-product-image-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fse-product-image:hover .fse-product-image-remove {
+  opacity: 1;
+}
+
+.fse-product-image-remove:hover {
+  background: rgba(220, 50, 50, 0.8);
+  color: #fff;
+}
+
+.fse-product-image-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.fse-product-image-add:hover {
+  border-color: #1d66ff;
+  color: #1d66ff;
+}
+
 /* 产品定价快捷字段 */
 .fse-product-fields {
   display: grid;
@@ -609,6 +768,25 @@
 
 .fse-inline-field input:focus {
   border-color: #1d66ff;
+}
+
+.fse-input-with-suffix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fse-input-with-suffix input {
+  flex: 1;
+  min-width: 0;
+}
+
+.fse-field-suffix {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
 }
 
 /* #4 产品快捷操作按钮 */
@@ -907,14 +1085,295 @@
   }
   .fse-bar {
     bottom: 10px;
-    padding: 4px 6px;
+    padding: 4px;
   }
   .fse-pill {
-    padding: 6px 8px;
-    font-size: 12px;
+    padding: 7px 12px 6px;
   }
-  .fse-pill-icon,
-  .fse-pill-key {
+  .fse-pill-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .fse-pill-label {
+    font-size: 9px;
+  }
+  .fse-actions-export span {
     display: none;
   }
+}
+
+/* ---- 图片浮动操作菜单 ---- */
+
+.fse-img-menu {
+  position: absolute;
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  padding: 4px;
+  background: rgba(30, 37, 54, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  animation: fse-fade-in 0.12s ease;
+}
+
+.fse-img-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+}
+
+.fse-img-menu-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fse-img-menu-btn.fse-img-menu-del:hover {
+  color: #f87171;
+  background: rgba(220, 50, 50, 0.15);
+}
+
+/* ---- 图片库选择弹窗 ---- */
+
+.fse-img-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  animation: fse-fade-in 0.15s ease;
+}
+
+.preview-panel:not(:fullscreen) .fse-img-picker {
+  display: none;
+}
+
+.fse-img-picker-panel {
+  width: min(520px, 90vw);
+  max-height: 80vh;
+  background: #252d3e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fse-img-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.fse-img-picker-head strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.fse-img-picker-close {
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 15px;
+  cursor: pointer;
+  display: grid;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fse-img-picker-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.fse-img-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 16px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.fse-img-picker-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fse-img-picker-card:hover {
+  border-color: rgba(29, 102, 255, 0.4);
+  background: rgba(29, 102, 255, 0.06);
+}
+
+.fse-img-picker-card.is-selected {
+  border-color: #1d66ff;
+  background: rgba(29, 102, 255, 0.1);
+}
+
+.fse-img-picker-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #1d66ff;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.fse-img-picker-card img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.fse-img-picker-card span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.fse-img-picker-foot {
+  padding: 10px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.fse-img-picker-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.fse-img-picker-upload:hover {
+  border-color: #1d66ff;
+  color: #1d66ff;
+}
+
+/* ---- 画廊占位符（预览区） ---- */
+
+.gallery-empty-placeholder {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.preview-panel:fullscreen .gallery-empty-placeholder {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.gallery-placeholder-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #999;
+}
+
+.preview-panel:fullscreen .gallery-placeholder-inner {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.gallery-placeholder-inner svg {
+  opacity: 0.5;
+}
+
+.gallery-placeholder-inner span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---- 产品行图片加号按钮（预览区） ---- */
+
+.product-image-add-btn {
+  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin: 4px 0 4px 8px;
+  border: 2px dashed #c0c0c0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  color: #aaa;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.product-image-add-btn:hover {
+  border-color: #1d66ff;
+  color: #1d66ff;
+  background: rgba(29, 102, 255, 0.04);
+}
+
+.preview-panel:fullscreen .product-image-add-btn {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.preview-panel:fullscreen .product-image-add-btn:hover {
+  border-color: #1d66ff;
+  color: #1d66ff;
+  background: rgba(29, 102, 255, 0.08);
 }

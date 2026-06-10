@@ -76,7 +76,7 @@ views/profile.js       ← state, api, utils, ui（由 projects.js import）
 views/users.js         ← state, api, utils, topbar, ui
 views/editor.js        ← state, utils, icons, topbar, preview, editor-modules, quote-template, history, api
 views/editor-modules.js ← state, utils, icons, ui, bulk-import, preview, projects
-views/fullscreen-editor.js ← state, utils, history, preview, api, ui, editor-modules（main.js 导入 syncSectionFromPreview）
+views/fullscreen-editor.js ← state, utils, history, preview, api, ui, editor-modules（main.js 导入 syncSectionFromPreview + 注入 uploadImageFromFile）
 
 renderQuote.mjs ← quote-template, database     ← 服务端也导入 quote-template
 
@@ -169,7 +169,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - **TOTAL 可编辑**：Pricing 模块的 TOTAL 字段可编辑。启用 Subtotal + Freight 时，编辑 TOTAL 会反算 FREIGHT（`recalcFreightFromTotal`）；未启用时 TOTAL 直接使用用户输入值
 - **配件序号颜色**：配件序号圆圈为橙色（`#e8830c`），产品为蓝色（`#1f5bd6`），通过 `.is-accessory .quote-item-no` 覆盖
 - 报价单中所有产品/配件分项之间通过 `product-row-separated` 类添加双线分隔（`border-top: 2px double #1d1d1d`）
-- 报价单模板统一在 `quote-template.js`（纯函数模块，无浏览器/Node API），预览和 PDF 共用 `quoteBodyMarkup(data, images, params, options)`。差异通过 `options` 参数处理：`imageSrc`（图片路径）、`draggable`（拖拽属性）、`logoSrc`、`galleryClasses`、`heroTitleFallback`、`labels`（翻译后的模板标签覆盖默认英文标签）
+- 报价单模板统一在 `quote-template.js`（纯函数模块，无浏览器/Node API），预览和 PDF 共用 `quoteBodyMarkup(data, images, params, options)`。差异通过 `options` 参数处理：`imageSrc`（图片路径）、`draggable`（拖拽属性）、`logoSrc`、`galleryClasses`、`heroTitleFallback`、`labels`（翻译后的模板标签覆盖默认英文标签）、`interactive`（预览区行内编辑）、`galleryPlaceholder`（画廊空图占位符，仅全屏非纯净模式）
 - `quote-template.js` 导出 `LABEL_KEYS`（18 个标签 key 数组）和 `DEFAULT_LABELS`（默认英文标签值），翻译时标签与数据文本一起批量发送给翻译 API，翻译结果存入 `translation.labels`。渲染时 `quoteBodyMarkup` 内部合并 `options.labels` 与 `DEFAULT_LABELS`
 - 画廊渲染使用 CSS Grid（`gallery-1` 到 `gallery-6` 类名控制列数），行高 `auto` 图片按原始比例自然显示。样式维护两处：`css/quote-sheet-content.css`（浏览器预览，`renderQuote.mjs` 直接读取用于 PDF 导出）和 `templates/style.css`（独立 HTML 模板）。PDF 导出时覆盖去掉 figure 的边框/背景/圆角
 - 项目列表卡片为 3 列纵向布局，顶部显示真实报价单缩略预览（CSS `transform: scale(0.26)` + `contain: layout paint`），下方显示标题/客户/编号/产品/金额/时间，右下角三点菜单。`database.mjs` 的 `normalizeProjectListRow` 返回完整 `data` 字段供前端计算金额和渲染预览
@@ -192,13 +192,17 @@ main.js ← 以上所有（顶层编排，无人导入它）
   - **`normalizeAccessoryParameters`** 保留 `_new` 标记：`...(p._new ? { _new: true } : {})`，防止规范化时丢失
   - CSS 统一用 `pe-` 前缀（preview-edit），属性用 `data-edit-` 前缀。样式在 `css/preview.css`
 - **全屏 Pro 编辑模式**（`views/fullscreen-editor.js`）：预览工具栏的全屏按钮触发，将预览面板进入 Fullscreen API，底部叠加命令栏（`fse-bar`）+ 右侧暗色上下文编辑卡片（`fse-card`）+ 顶部迷你工具栏（`fse-mini-toolbar`，替换原工具栏的撤销/重做/缩放/适配）。6 个 section（Info/Parties/Products/Pricing/Terms/Footer）通过药丸切换，卡片内容动态渲染对应表单。输入防抖 200ms 后仅刷新预览（`quietDirty()`），blur 时 `markDirty()` 同步
-  - **Scroll Spy**：监听预览滚动，自动检测当前可见 section 并更新命令栏药丸高亮（反向联动）
-  - **键盘快捷键**：`1-6` 切换 section、`Ctrl+S` 保存、`↑↓` 在 Products 中切换高亮产品、`ESC` 退出全屏
+  - **Scroll Spy**：监听预览滚动，自动检测当前可见 section 并同步更新命令栏药丸高亮（仅视觉，不同步右侧卡片内容）。用户主动切换（点击药丸/方向键）时通过 `scrollSpySuppressed` 标志抑制 600ms，避免 scroll spy 抢回控制权（products 和 pricing 共享同一个 `previewSection: "pricing"`，不抑制会导致切换被覆盖）
+  - **键盘快捷键**：`1-6` 切换 section、`←→` 切换 section、`` ` `` 切换纯净预览、`Ctrl+S` 保存、`↑↓` 在 Products 中切换高亮产品、`ESC` 退出全屏
   - **字段↔预览高亮**：卡片中 hover 带有 `data-fse-highlight-path` 的字段时，预览对应元素添加 `fse-preview-highlight` 脉冲动画（CSS `@keyframes fse-pulse`）
   - **产品快捷操作**：hover 产品卡片显示上移/下移/复制/删除按钮（`data-fse-move-up/down/duplicate/delete`），操作后仅 `refreshCardBody()` + `markDirty()`，不触发全量重渲染
-  - **中英文切换**：命令栏右侧语言按钮切换所有 UI 标签（`LABELS` 对象维护 en/zh 双语）
+  - **中英文切换**：右上角操作栏语言按钮切换所有 UI 标签（`LABELS` 对象维护 en/zh 双语），操作栏还包含保存和导出 PDF 按钮
   - **防全渲染**：全屏模式下所有操作（编辑/添加/删除/移动）只调 `refreshCardBody()` + `scheduleDebouncedRender()` / `markDirty()`，不调用 `renderEditorPage()`。预览区 section/party/item 点击时检查 `state.previewFullscreen`，仅调 `syncSectionFromPreview()` 联动命令栏。退出全屏只允许 ESC（全屏按钮不再触发 `exitFullscreen`）
   - **清理**：`cleanupFullscreenPro()` 在退出全屏时移除 scroll spy 监听、键盘监听、高亮状态，恢复原工具栏。`editor.js` 的 `fullscreenchange` 处理器负责 DOM 清理和 `renderEditorPage()` 重建
+  - **纯净预览模式**：迷你工具栏的 eye 按钮（或 `` ` `` 快捷键）进入，隐藏所有编辑 UI（命令栏/卡片/操作栏），渲染无交互的原始报价单模板。退出按钮在顶部居中。`state.purePreview` 控制 `options.interactive`
+  - **预览区图片管理**：全屏模式下点击预览区的画廊图片或产品图片，弹出暗色浮动菜单（Upload/Library/Remove）。无图时画廊显示虚线占位符、产品参数区右侧显示 60×60 虚线框"+"按钮（`float: right`，不影响参数布局）。图库选择器为暗色全屏弹窗（4 列网格）。`registerFullscreenCallbacks({ uploadImageFromFile })` 注入上传函数，`uploadImageFromFile` 在全屏模式下跳过 `renderEditorPage()` 防止销毁全屏元素
+  - **Pricing Freight 切换**：预览区 Summary 行显示 Subtotal + Freight 开关（`.summary-freight-toggle` + `.freight-switch`），点击切换 `data.pricing.freightMode`，即时重算汇总
+  - **底部导航栏**：macOS 风格 frosted glass（`blur(24px) saturate(180%)`），6 个药丸垂直布局（SVG 图标 + 标签），选中态柔和蓝色半透明（`rgba(29,102,255,0.16)`），纯导航无操作按钮
   - 样式在 `css/fullscreen-editor.css`，使用 `fse-` 前缀，暗色主题（卡片 `#252d3e`，深色背景 `#1e2536`）
 
 ### Common Development Patterns

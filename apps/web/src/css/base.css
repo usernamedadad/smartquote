@@ -97,6 +97,40 @@ textarea:focus {
   box-shadow: inset 0 0 0 1px rgba(29, 102, 255, 0.32);
 }
 
+/* 编号递增按钮（编辑区） */
+.field--inc {
+  grid-template-columns: 1fr;
+}
+
+.field-input-wrap {
+  display: flex;
+  gap: 6px;
+}
+
+.field-input-wrap input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inc-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8f9fb;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.inc-btn:hover {
+  background: #eef2ff;
+  color: #3b6cf5;
+  border-color: #c7d4f5;
+}
+
 .primary-button,
 .ghost-button,
 .icon-button {

@@ -11,9 +11,10 @@
 .quote-sheet .pricing-table {
   width: 100%;
   table-layout: fixed;
-  border-collapse: collapse;
-  border-top: 2px double #1d1d1d;
-  border-bottom: 2px double #1d1d1d;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-top: 2px solid #1d1d1d;
+  border-bottom: 2px solid #1d1d1d;
   font-family: Arial, Helvetica, sans-serif;
   font-stretch: normal;
   letter-spacing: 0;
@@ -37,7 +38,7 @@
   line-height: 1.1;
   text-align: center;
   vertical-align: middle;
-  border-bottom: 2px double #1d1d1d;
+  border-bottom: 2px solid #1d1d1d;
 }
 
 .quote-sheet .pricing-table th:nth-child(1) {
@@ -98,7 +99,7 @@
 }
 
 .quote-sheet .product-row-separated td {
-  border-top: 2px double #1d1d1d;
+  border-top: 2px solid #1d1d1d;
 }
 
 .quote-sheet .product-row td:first-child {
@@ -228,7 +229,7 @@
 }
 
 .quote-sheet .total-row > td {
-  border-top: 2px double #1d1d1d;
+  border-top: 2px solid #1d1d1d;
 }
 
 .quote-sheet .summary-cell {
@@ -237,6 +238,51 @@
 
 .quote-sheet .summary-table {
   width: 100%;
+}
+
+/* Subtotal + Freight 快捷开关 */
+.quote-sheet .summary-freight-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: 0.3px;
+}
+
+.quote-sheet .freight-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border: none;
+  border-radius: 10px;
+  background: #ccc;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.quote-sheet .freight-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.quote-sheet .freight-switch.on {
+  background: #1d66ff;
+}
+
+.quote-sheet .freight-switch.on::after {
+  transform: translateX(14px);
 }
 
 .quote-sheet .summary-line {

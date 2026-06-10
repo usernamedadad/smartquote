@@ -235,11 +235,11 @@ body {
 .pricing-table {
   width: 100%;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
   border: 0;
-  border-top: 2px double #1d1d1d;
-  border-bottom: 2px double #1d1d1d;
+  border-top: 2px solid #1d1d1d;
+  border-bottom: 2px solid #1d1d1d;
   font-family: Arial, Helvetica, sans-serif;
   font-stretch: normal;
   letter-spacing: 0;
@@ -269,7 +269,7 @@ body {
   line-height: 1.1;
   text-align: center;
   vertical-align: middle;
-  border-bottom: 2px double #1d1d1d;
+  border-bottom: 2px solid #1d1d1d;
 }
 
 .pricing-table th:nth-child(1) {
@@ -304,7 +304,7 @@ body {
 }
 
 .product-row-separated td {
-  border-top: 2px double #1d1d1d;
+  border-top: 2px solid #1d1d1d;
 }
 
 .product-row td:first-child {
@@ -414,7 +414,7 @@ body {
 }
 
 .total-row > td {
-  border-top: 2px double #1d1d1d;
+  border-top: 2px solid #1d1d1d;
 }
 
 .summary-cell {

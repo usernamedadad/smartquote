@@ -4,7 +4,7 @@
 import { state } from "../state.js";
 import {
   normalizeGalleryLayout, normalizeQuoteItems, escapeHtml, productPreviewUrl,
-  calculateTotalAmount, recalcAccessoryTotal, updateQuoteTotals, parseAmountNumber
+  calculateTotalAmount, recalcAccessoryTotal, updateQuoteTotals, parseAmountNumber, extractNumeric
 } from "../utils.js";
 import { quoteBodyMarkup, normalizeQuoteLayout } from "../quote-template.js";
 import { recordUndoSnapshot } from "../history.js";
@@ -17,8 +17,12 @@ let _switchToModule;
 let _removeQuoteItem;
 let _refreshEditor;
 let _syncSectionFromPreview;
+let _refreshFullscreenCard;
+let _cardRefreshTimer = 0;
+let _refreshModuleEditor;
+let _moduleRefreshTimer = 0;
 
-export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor, syncSectionFromPreview }) {
+export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor, syncSectionFromPreview, refreshFullscreenCard, refreshModuleEditor }) {
   _rerenderSelectedImages = rerenderSelectedImages;
   _addAccessory = addAccessory;
   _selectProduct = selectProduct;
@@ -26,6 +30,8 @@ export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory,
   _switchToModule = switchToModule;
   _refreshEditor = refreshEditor;
   _syncSectionFromPreview = syncSectionFromPreview;
+  _refreshFullscreenCard = refreshFullscreenCard;
+  _refreshModuleEditor = refreshModuleEditor;
 }
 
 export function markDirty() {
@@ -38,14 +44,22 @@ export function markDirty() {
   const projectName = document.querySelector("#topbar-project-name");
   if (projectName) projectName.textContent = state.activeProject?.projectName || "";
   scheduleQuotePreviewRender();
+  /* 全屏模式：结构变更后立即刷新右侧卡片 */
+  if (state.previewFullscreen && _refreshFullscreenCard) {
+    _refreshFullscreenCard();
+  }
 }
 
-/** 延迟刷新编辑器：blur 后检查焦点是否移到另一个预览输入框，避免连续点击失效 */
+/** 延迟刷新编辑器：blur 后检查焦点是否仍在预览区内，避免覆盖刚触发的渲染 */
 function deferredRefreshEditor() {
   requestAnimationFrame(() => {
     const active = document.activeElement;
-    /* 焦点仍在预览区输入框 → 跳过刷新，避免吃掉 click */
-    if (active && active.closest("#quote-preview") && active.matches("input, textarea")) return;
+    /* 焦点仍在预览区（包括输入框、按钮等） → 跳过刷新 */
+    if (active && active.closest("#quote-preview")) return;
+    /* 全屏模式：刷新右侧卡片 */
+    if (state.previewFullscreen && _refreshFullscreenCard) {
+      _refreshFullscreenCard();
+    }
     if (_refreshEditor) _refreshEditor();
   });
 }
@@ -60,7 +74,18 @@ export function quietDirty() {
   if (status) status.textContent = "未保存";
   const projectName = document.querySelector("#topbar-project-name");
   if (projectName) projectName.textContent = state.activeProject?.projectName || "";
-  /* 不调用 scheduleQuotePreviewRender() */
+  /* 全屏模式：防抖刷新右侧卡片，实现输入时实时同步 */
+  if (state.previewFullscreen && _refreshFullscreenCard) {
+    /* 焦点在全屏卡片内时跳过刷新——用户正在输入，刷新会销毁输入框 */
+    if (document.activeElement?.closest(".fse-card")) return;
+    clearTimeout(_cardRefreshTimer);
+    _cardRefreshTimer = setTimeout(_refreshFullscreenCard, 120);
+  }
+  /* 常规模式：防抖刷新左侧编辑区面板 */
+  if (!state.previewFullscreen && _refreshModuleEditor) {
+    clearTimeout(_moduleRefreshTimer);
+    _moduleRefreshTimer = setTimeout(_refreshModuleEditor, 200);
+  }
 }
 
 let _pendingFocusTarget = null;
@@ -120,7 +145,8 @@ export function renderQuotePreview() {
     imageSrc: (img) => img.url,
     logoSrc: "/assets/logo.png",
     draggable: true,
-    interactive: true,
+    interactive: !state.purePreview,
+    galleryPlaceholder: state.previewFullscreen && !state.purePreview,
     galleryClasses: "preview-gallery custom-gallery-layout",
     assetImages: state.images,
     labels: translation?.labels,
@@ -330,6 +356,21 @@ function bindPreviewInteractiveActions(preview) {
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
       if (typeof _removeQuoteItem === "function") _removeQuoteItem(Number(btn.dataset.removePreviewItem));
+    });
+  });
+
+  /* Subtotal + Freight 快捷开关 */
+  preview.querySelectorAll("[data-toggle-freight-mode]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const current = btn.dataset.toggleFreightMode === "true";
+      const pr = state.activeProject?.data?.pricing;
+      if (!pr) return;
+      recordUndoSnapshot();
+      pr.enabledItems = current ? ["total"] : ["subtotal", "freight", "total"];
+      updateQuoteTotals(state.activeProject.data);
+      markDirty();
+      if (typeof _refreshEditor === "function") _refreshEditor();
     });
   });
 }
@@ -627,6 +668,42 @@ function bindPreviewInlineEditing(preview) {
   /* 配件单位编辑 */
   preview.querySelectorAll("[data-edit-acc-unit]").forEach((el) => {
     el.addEventListener("focus", recordUndoSnapshot);
+    /* 聚焦时显示快捷选项 */
+    const droplist = el.nextElementSibling;
+    if (droplist?.classList.contains("pe-unit-droplist")) {
+      el.addEventListener("focus", () => { droplist.classList.add("open"); highlightIdx = -1; });
+      el.addEventListener("blur", () => setTimeout(() => droplist.classList.remove("open"), 150));
+    }
+    /* 键盘导航快捷选项：↑↓ 切换高亮，Enter 选择 */
+    let highlightIdx = -1;
+    el.addEventListener("keydown", (e) => {
+      if (!droplist?.classList.contains("pe-unit-droplist") || !droplist.classList.contains("open")) return;
+      const options = Array.from(droplist.querySelectorAll("button"));
+      if (!options.length) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        highlightIdx = Math.min(highlightIdx + 1, options.length - 1);
+        options.forEach((o) => o.classList.remove("pe-unit-active"));
+        options[highlightIdx].classList.add("pe-unit-active");
+        options[highlightIdx].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        highlightIdx = Math.max(highlightIdx - 1, 0);
+        options.forEach((o) => o.classList.remove("pe-unit-active"));
+        options[highlightIdx].classList.add("pe-unit-active");
+        options[highlightIdx].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter" && highlightIdx >= 0) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const value = options[highlightIdx].dataset.peUnitPick;
+        el.value = value;
+        el.dispatchEvent(new Event("input"));
+        droplist.classList.remove("open");
+        highlightIdx = -1;
+      }
+    });
     el.addEventListener("input", () => {
       const { index, key } = parseEditKey(el.dataset.editAccUnit);
       const item = data.quoteItems?.[index];
@@ -640,6 +717,20 @@ function bindPreviewInlineEditing(preview) {
     el.addEventListener("click", (e) => e.stopPropagation());
   });
 
+  /* 配件单位快捷选项 */
+  preview.querySelectorAll("[data-pe-unit-pick]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const wrap = btn.closest(".pe-unit-wrap");
+      const input = wrap?.querySelector("[data-edit-acc-unit]");
+      if (!input) return;
+      input.value = btn.dataset.peUnitPick;
+      input.dispatchEvent(new Event("input"));
+      const droplist = wrap.querySelector(".pe-unit-droplist");
+      if (droplist) droplist.classList.remove("open");
+    });
+  });
+
   /* + Row 按钮（配件添加参数行） */
   preview.querySelectorAll("[data-add-acc-row]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -649,13 +740,31 @@ function bindPreviewInlineEditing(preview) {
       if (!item || item.type !== "accessory") return;
       recordUndoSnapshot();
       if (!Array.isArray(item.parameters)) item.parameters = [];
-      /* 清除旧 _new 标记（之前的可编辑行变为纯文本） */
-      item.parameters.forEach((p) => { delete p._new; });
+      /* 直接追加新行，不碰已有参数 */
       const newIdx = item.parameters.length;
       item.parameters.push({ name: " ", quantity: "", unitPrice: "", lineTotal: "", unit: "", _new: true });
       schedulePreviewRefocus(`[data-edit-acc-name="${index}:${newIdx}"]`);
       markDirty();
       if (_refreshEditor) _refreshEditor();
+    });
+  });
+
+  /* Enter 键：配件行跳到同行下一个输入框，无下一个则 blur 退出编辑；
+     非配件行（产品自定义参数）直接 blur */
+  preview.querySelectorAll(".pe-param-input, .pe-line-input").forEach((input) => {
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const row = input.closest("tr");
+      if (row) {
+        const fields = Array.from(row.querySelectorAll(".pe-line-input"));
+        const idx = fields.indexOf(input);
+        if (idx >= 0 && idx < fields.length - 1) {
+          fields[idx + 1].focus();
+          return;
+        }
+      }
+      input.blur();
     });
   });
 

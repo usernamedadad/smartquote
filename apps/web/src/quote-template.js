@@ -172,7 +172,8 @@ function galleryGridMarkup(data, images, options) {
     const figureClass = galleryFigureClass(preset, index, count);
     const span = figureClass ? ` class="${figureClass}"` : "";
     const figDrag = options.draggable ? ` draggable="true" data-preview-gallery-image="${image.id}"` : "";
-    return `<figure${span}${figDrag}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
+    const figIdx = ` data-gallery-idx="${index}"`;
+    return `<figure${span}${figDrag}${figIdx}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
   }).filter(Boolean).join("");
 
   const drag = options.draggable ? `draggable="true" data-preview-section="gallery"` : "";
@@ -217,14 +218,14 @@ function quoteItemRowsMarkup(data, options) {
         ? `<button class="preview-add-btn preview-acc-btn" data-add-accessory="${i}">+ Acc</button>`
         : "";
       const productSpecs = productSpecMarkup(item, i, options);
-      const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${i}" title="删除">×</button>` : "";
+      const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${i}" title="删除"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : "";
       html += `
         <tr class="product-row ${i > 0 ? "product-row-separated" : ""}" ${interactive ? `data-preview-item="${i}"` : ""}>
-          <td class="product-no-cell">${accBtn}<span class="product-no-text">${i + 1}.</span> ${deleteBtn}</td>
+          <td class="product-no-cell">${accBtn}<span class="product-no-text">${i + 1}.</span></td>
           <td>${productSpecs}</td>
           <td>${escapeHtml(qtyDisplay)}</td>
           <td>${escapeHtml(item.pricing?.unitPrice || "")}</td>
-          <td>${amountCellMarkup(item.pricing?.totalAmount)}</td>
+          <td class="product-total-cell">${amountCellMarkup(item.pricing?.totalAmount)}${deleteBtn}</td>
         </tr>`;
     }
   }
@@ -241,21 +242,30 @@ function productSpecMarkup(item, itemIndex, options) {
   const interactive = options?.interactive || false;
   const body = `<div class="product-name-bar"><h3>${escapeHtml(item.product?.enName || "")}</h3></div>${parameterRows(item.parameters, itemIndex, interactive)}`;
   const productImage = quoteImageById(item.imageId, options);
-
-  if (!productImage) return body;
-
   const imageSrc = options.imageSrc || ((img) => img.url);
-  const src = imageSrc(productImage);
-  if (!src) return body;
 
-  return `
-    <div class="product-spec-with-image">
-      <div class="product-spec-text">${body}</div>
-      <figure class="product-inline-image">
-        <img src="${src}" alt="${escapeHtml(productImage.originalName || item.product?.enName || "")}">
-      </figure>
-    </div>
-  `;
+  if (productImage) {
+    const src = imageSrc(productImage);
+    if (src) {
+      return `
+        <div class="product-spec-with-image">
+          <div class="product-spec-text">${body}</div>
+          <figure class="product-inline-image" data-product-image-item="${itemIndex}">
+            <img src="${src}" alt="${escapeHtml(productImage.originalName || item.product?.enName || "")}">
+          </figure>
+        </div>
+      `;
+    }
+  }
+
+  /* 无产品图时：交互模式显示独立加号按钮（不影响原布局） */
+  if (interactive) {
+    return `${body}<button class="product-image-add-btn" type="button" data-product-image-placeholder="${itemIndex}" title="Add product image">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>`;
+  }
+
+  return body;
 }
 
 function quoteImageById(imageId, options = {}) {
@@ -272,22 +282,25 @@ function accessoryRowsMarkup(item, index, interactive = false) {
   const name = escapeHtml(item.accessoryName || item.product?.enName || "");
   const rowSep = index > 0 ? "product-row-separated" : "";
   const itemAttr = interactive ? `data-preview-item="${index}"` : "";
-  const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${index}" title="删除">×</button>` : "";
+  const deleteBtn = interactive ? `<button class="preview-delete-btn" data-remove-preview-item="${index}" title="删除"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : "";
 
-  /* 只显示有名称的参数行；interactive 时也显示 _new 标记的新行 */
-  const visibleParams = interactive
-    ? params.filter((p) => p.name.trim() || p._new)
-    : params.filter((p) => p.name.trim());
-  const rowCount = visibleParams.length + 1;
+  /* 判断每行是否可见：有名称 或 interactive 模式下有 _new 标记 */
+  const isVisible = (p) => p.name.trim() || (interactive && p._new);
+  const visibleCount = params.filter(isVisible).length;
+  const rowCount = visibleCount + 1;
 
   /* + Row 浮动按钮放在名称 <td> 内，不占表格行 */
   const addRowBtn = interactive
-    ? `<button class="pe-float-btn" data-add-acc-row="${index}">+ Row</button>`
+    ? `<button class="pe-float-btn pe-float-btn--abs" data-add-acc-row="${index}">+ Row</button>`
     : "";
 
-  const nameHtml = `<h3>${name}</h3>${addRowBtn}`;
+  const nameHtml = interactive
+    ? `<input class="pe-line-input pe-acc-title" data-edit-acc-title="${index}" value="${escapeHtml(item.accessoryName || "")}" placeholder="配件名称">${addRowBtn}`
+    : `<h3>${name}</h3>${addRowBtn}`;
 
-  const detailRows = visibleParams.map((p, pi) => {
+  /* 遍历原始 params 数组，用 origIdx 保持与 item.parameters 的索引一致 */
+  const detailRows = params.map((p, origIdx) => {
+    if (!isVisible(p)) return "";
     const pUnit = p.unit || fallbackUnit;
     const qtyNum = parseFloat(extractNumeric(p.quantity)) || 0;
     const qtyUnitForm = pUnit ? (qtyNum === 1 ? pUnit : `${pUnit}s`) : "";
@@ -300,10 +313,10 @@ function accessoryRowsMarkup(item, index, interactive = false) {
       const rawPrice = extractNumeric(p.unitPrice || "");
       const rawUnit = p.unit || "";
       return `<tr class="accessory-detail-row pe-new-row">
-        <td><input class="pe-line-input pe-name-field" data-edit-acc-name="${index}:${pi}" value="${escapeHtml(p.name.trim())}" placeholder="参数名称"></td>
-        <td><input class="pe-line-input pe-qty-field" data-edit-acc-qty="${index}:${pi}" value="${escapeHtml(rawQty)}" placeholder="数量"> <input class="pe-line-input pe-unit-field" data-edit-acc-unit="${index}:${pi}" value="${escapeHtml(rawUnit)}" placeholder="单位"></td>
-        <td>$<input class="pe-line-input pe-price-field" data-edit-acc-price="${index}:${pi}" value="${escapeHtml(rawPrice)}" placeholder="单价"></td>
-        <td class="pe-linetotal" data-linetotal-cell="${index}:${pi}">${amountCellMarkup(p.lineTotal)}<button class="pe-delete" data-delete-acc-row="${index}:${pi}" title="删除">×</button></td>
+        <td><input class="pe-line-input pe-name-field" data-edit-acc-name="${index}:${origIdx}" value="${escapeHtml(p.name.trim())}" placeholder="参数名称"></td>
+        <td><input class="pe-line-input pe-qty-field" data-edit-acc-qty="${index}:${origIdx}" value="${escapeHtml(rawQty)}" placeholder="数量"> <span class="pe-unit-wrap"><input class="pe-line-input pe-unit-field" data-edit-acc-unit="${index}:${origIdx}" value="${escapeHtml(rawUnit)}" placeholder="单位"><span class="pe-unit-droplist"><button type="button" data-pe-unit-pick="set">set</button><button type="button" data-pe-unit-pick="meter">meter</button><button type="button" data-pe-unit-pick="pc">pc</button></span></span></td>
+        <td>$<input class="pe-line-input pe-price-field" data-edit-acc-price="${index}:${origIdx}" value="${escapeHtml(rawPrice)}" placeholder="单价"></td>
+        <td class="pe-linetotal" data-linetotal-cell="${index}:${origIdx}">${amountCellMarkup(p.lineTotal)}<button class="pe-delete" data-delete-acc-row="${index}:${origIdx}" title="删除">×</button></td>
       </tr>`;
     }
     return `<tr class="accessory-detail-row">
@@ -315,9 +328,9 @@ function accessoryRowsMarkup(item, index, interactive = false) {
   }).join("");
 
   return `<tr class="product-row accessory-row ${rowSep}" ${itemAttr}>
-    <td rowspan="${rowCount}">${index + 1}. ${deleteBtn}</td>
+    <td rowspan="${rowCount}">${index + 1}.</td>
     <td>${nameHtml}</td>
-    <td></td><td></td><td></td>
+    <td></td><td></td><td class="product-total-cell">${deleteBtn}</td>
   </tr>${detailRows}`;
 }
 
@@ -328,6 +341,7 @@ function amountCellMarkup(value) {
 
 function pricingSummaryRowsMarkup(data, options = {}) {
   const labels = options.labels || DEFAULT_LABELS;
+  const interactive = options?.interactive || false;
   const pricing = updateQuoteTotals(data);
   const freightMode = (pricing.enabledItems || []).includes("freight");
   const rows = [];
@@ -338,10 +352,19 @@ function pricingSummaryRowsMarkup(data, options = {}) {
   }
   rows.push({ label: labels.total, value: pricing.totalAmount || pricing.subtotal || "" });
 
+  /* 交互模式：Subtotal + Freight 快捷开关 */
+  const freightToggle = interactive
+    ? `<div class="summary-freight-toggle">
+        <span>${labels.subtotal} + ${labels.freight}</span>
+        <button class="freight-switch${freightMode ? " on" : ""}" type="button" data-toggle-freight-mode="${freightMode}" title="Toggle Subtotal + Freight"></button>
+      </div>`
+    : "";
+
   return `
     <tr class="total-row">
       <td colspan="3"></td>
       <td colspan="2" class="summary-cell">
+        ${freightToggle}
         <div class="summary-table" aria-label="Price summary">
           ${rows.map((row) => `
             <div class="summary-line">
@@ -401,7 +424,22 @@ function quoteSectionMarkup(sectionId, data, images, params, options) {
   }
 
   if (sectionId === "gallery") {
-    if (!images.length) return "";
+    if (!images.length) {
+      /* 仅全屏模式交互时显示占位符，通过 galleryPlaceholder 选项控制 */
+      if (options?.galleryPlaceholder) {
+        return `
+          <section class="gallery-section" aria-label="Product images">
+            <div class="gallery gallery-empty-placeholder" data-gallery-placeholder>
+              <div class="gallery-placeholder-inner">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Click to add images</span>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+      return "";
+    }
     return galleryGridMarkup(data, images, options);
   }
 

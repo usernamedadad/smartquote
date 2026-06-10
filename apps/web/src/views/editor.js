@@ -158,7 +158,7 @@ function bindPreviewControls() {
       /* 清理全屏 Pro 资源 */
       cleanupFullscreenPro();
       /* 清除全屏 Pro 元素 */
-      document.querySelectorAll(".fse-bar, .fse-card, .fse-toggle, .fse-picker-overlay, .fse-mini-toolbar").forEach((el) => el.remove());
+      document.querySelectorAll(".fse-bar, .fse-card, .fse-toggle, .fse-picker-overlay, .fse-mini-toolbar, .fse-actions, .fse-pure-exit, .fse-img-menu, .fse-img-picker").forEach((el) => el.remove());
       const scroll = document.querySelector(".preview-scroll");
       if (scroll) scroll.classList.remove("fse-scroll-margin");
       renderEditorPage();

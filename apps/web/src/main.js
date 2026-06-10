@@ -13,9 +13,9 @@ import { renderEditorPage, registerEditorCallbacks } from "./views/editor.js";
 import { registerEditorModulesCallbacks } from "./views/editor-modules.js";
 import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
 import { markDirty, renderQuotePreview, registerPreviewCallbacks } from "./views/preview.js";
-import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem } from "./views/editor-modules.js";
+import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, renderModuleEditor } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
-import { syncSectionFromPreview } from "./views/fullscreen-editor.js";
+import { syncSectionFromPreview, refreshFullscreenCard, registerFullscreenCallbacks } from "./views/fullscreen-editor.js";
 
 /* ---- 注册回调（解决循环依赖） ---- */
 
@@ -25,7 +25,8 @@ registerLoginCallbacks({ renderProjectsPage });
 registerUsersCallbacks({ renderProjectsPage });
 registerProjectsCallbacks({ openProject, uploadImage, uploadImageFromFile, deleteImage, renderUsersPage });
 registerEditorCallbacks({ openProject, loadWorkspace });
-registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage });
+registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage, refreshFullscreenCard });
+registerFullscreenCallbacks({ uploadImageFromFile });
 
 /** 滚动到指定产品/配件卡片，补偿 sticky 产品条高度 */
 function scrollToQuoteItem(itemIndex) {
@@ -51,10 +52,13 @@ registerPreviewCallbacks({
   selectProduct,
   removeQuoteItem,
   syncSectionFromPreview,
+  refreshFullscreenCard,
+  refreshModuleEditor: renderModuleEditor,
   refreshEditor: () => {
-    /* 全屏中只刷新预览区，不重建 DOM（避免退出全屏） */
+    /* 全屏中刷新预览区 + 右侧卡片 */
     if (state.previewFullscreen) {
       renderQuotePreview();
+      refreshFullscreenCard();
       return;
     }
     renderEditorPage();
@@ -146,6 +150,8 @@ async function uploadImageFromFile(file) {
     body: { filename: file.name, dataUrl }
   });
   await loadWorkspace();
+  /* 全屏模式下不重建编辑器（会销毁全屏元素），由调用方自行刷新预览 */
+  if (state.previewFullscreen) return;
   if (state.view === "editor") renderEditorPage();
   else renderProjectsPage();
 }

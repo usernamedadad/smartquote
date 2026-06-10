@@ -16,18 +16,20 @@ import { showAppModal, showContentModal } from "../ui.js";
 import { showBulkImportModal, parseImportText } from "../bulk-import.js";
 import { emptyMarkup } from "./projects.js";
 
-let _renderEditorPage, _uploadImageFromFile, _deleteImage;
+let _renderEditorPage, _uploadImageFromFile, _deleteImage, _refreshFullscreenCard;
 
-export function registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage }) {
+export function registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage, refreshFullscreenCard }) {
   _renderEditorPage = renderEditorPage;
   _uploadImageFromFile = uploadImageFromFile;
   _deleteImage = deleteImage;
+  _refreshFullscreenCard = refreshFullscreenCard;
 }
 
 /* ---- 模块内容分发 ---- */
 
 export function renderModuleEditor() {
   const container = document.querySelector("#module-editor-body");
+  if (!container) return;
   const data = state.activeProject.data;
 
   if (state.activeModule === "basic") container.innerHTML = basicEditorMarkup(data);
@@ -47,7 +49,7 @@ export function renderModuleEditor() {
 function basicEditorMarkup(data) {
   return `
     <div class="form-grid two">
-      ${fieldMarkup("报价单编号", "quoteMeta.quoteNo", data.quoteMeta.quoteNo)}
+      ${quoteNoFieldMarkup(data.quoteMeta.quoteNo)}
       ${dateFieldMarkup("报价日期", "quoteMeta.date", data.quoteMeta.date)}
       ${fieldMarkup("有效期", "quoteMeta.validity", data.quoteMeta.validity)}
       ${fieldMarkup("标题", "quoteMeta.title", data.quoteMeta.title)}
@@ -504,15 +506,11 @@ function termsEditorMarkup(data) {
 function termsItemMarkup(item, index) {
   return `
     <article class="term-item">
-      <label class="field">
-        <span>标题</span>
-        <input data-term-title="${index}" value="${escapeHtml(item.title)}">
-      </label>
-      <label class="field">
-        <span>内容</span>
-        <textarea data-term-content="${index}">${escapeHtml(item.content)}</textarea>
-      </label>
-      <button class="icon-button danger" type="button" title="删除标题" data-remove-term="${index}">×</button>
+      <div class="term-header">
+        <input class="term-title-input" data-term-title="${index}" value="${escapeHtml(item.title)}" placeholder="条款标题">
+        <button class="term-del-btn" type="button" title="删除" data-remove-term="${index}">✕</button>
+      </div>
+      <textarea class="term-content-input" data-term-content="${index}" placeholder="输入条款内容...">${escapeHtml(item.content)}</textarea>
     </article>
   `;
 }
@@ -540,6 +538,27 @@ function bulkImportMarkup(moduleId) {
       </div>
       <button class="ghost-button" type="button" data-import-module="${moduleId}">一键导入</button>
     </section>
+  `;
+}
+
+function bumpTrailingNumber(str, delta) {
+  const match = str.match(/^(.*?)(\d+)$/);
+  if (!match) return str;
+  const next = parseInt(match[2], 10) + delta;
+  if (next < 0) return str;
+  return match[1] + String(next).padStart(match[2].length, "0");
+}
+
+function quoteNoFieldMarkup(value) {
+  return `
+    <label class="field field--inc">
+      <span>报价单编号</span>
+      <span class="field-input-wrap">
+        <input data-path="quoteMeta.quoteNo" value="${escapeHtml(value)}" autocomplete="off">
+        <button class="inc-btn" type="button" data-bump="quoteMeta.quoteNo:1" title="V1 → V2">↑</button>
+        <button class="inc-btn" type="button" data-bump="quoteMeta.quoteNo:-1" title="V2 → V1">↓</button>
+      </span>
+    </label>
   `;
 }
 
@@ -572,6 +591,20 @@ function dateFieldMarkup(label, path, value) {
 function bindEditorFields(container) {
   container.querySelectorAll("input, textarea").forEach((input) => {
     input.addEventListener("focus", recordUndoSnapshot);
+  });
+
+  /* 编号递增/递减按钮 */
+  container.querySelectorAll("[data-bump]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const raw = btn.dataset.bump;
+      const [path, delta] = raw.split(":");
+      const input = btn.closest(".field-input-wrap")?.querySelector("input");
+      if (!input) return;
+      recordUndoSnapshot();
+      input.value = bumpTrailingNumber(input.value, Number(delta));
+      setByPath(state.activeProject.data, path, input.value);
+      markDirty();
+    });
   });
 
   /* 日期选择器：图标触发隐藏 date input */
@@ -1211,6 +1244,7 @@ function moveQuoteItem(index, direction) {
 
 function rerenderCurrentModule() {
   renderModuleEditor();
+  if (state.previewFullscreen && _refreshFullscreenCard) _refreshFullscreenCard();
 }
 
 export { addAccessory, selectProduct, removeQuoteItem };
