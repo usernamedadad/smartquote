@@ -197,7 +197,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/images") {
-    sendJson(res, 200, { images: listImages(user.id, user.role === "admin") });
+    sendJson(res, 200, { images: listImages(user.id) });
     return;
   }
 
@@ -225,7 +225,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/projects") {
-    sendJson(res, 200, { projects: listProjects(user.id, user.role === "admin") });
+    sendJson(res, 200, { projects: listProjects(user.id) });
     return;
   }
 
