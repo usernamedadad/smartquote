@@ -154,7 +154,7 @@ function quoteItemEditorMarkup(item, index, allItems) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
         </span>
         <span class="quote-item-no">${index + 1}</span>
-        <strong>${escapeHtml(item.product.enName || "Untitled Item")}</strong>
+        <input class="product-name-input" type="text" value="${escapeHtml(item.product.enName || "Untitled Item")}" data-product-name="${index}" placeholder="产品名称">
         <button class="header-add-accessory" type="button" data-add-accessory="${index}">+ 配件</button>
         <div class="quote-item-hover-actions">
           ${!isFirstProduct ? `<button class="hover-action" type="button" title="上移" data-move-quote-item="${index}:up">
@@ -803,7 +803,7 @@ function bindEditorFields(container) {
 
   container.querySelectorAll("[data-toggle-quote-item]").forEach((header) => {
     header.addEventListener("click", (event) => {
-      if (event.target.closest("[data-move-quote-item]") || event.target.closest("[data-remove-quote-item]") || event.target.closest("[data-add-accessory]") || event.target.closest("[data-accessory-name]")) return;
+      if (event.target.closest("[data-move-quote-item]") || event.target.closest("[data-remove-quote-item]") || event.target.closest("[data-add-accessory]") || event.target.closest("[data-accessory-name]") || event.target.closest("[data-product-name]")) return;
       toggleQuoteItem(Number(header.dataset.toggleQuoteItem));
     });
   });
@@ -873,6 +873,17 @@ function bindEditorFields(container) {
       const item = state.activeProject.data.quoteItems?.[Number(input.dataset.accessoryName)];
       if (!item) return;
       item.accessoryName = input.value;
+      item.product.enName = input.value;
+      markDirty();
+    });
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("focus", recordUndoSnapshot);
+  });
+
+  container.querySelectorAll("[data-product-name]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const item = state.activeProject.data.quoteItems?.[Number(input.dataset.productName)];
+      if (!item) return;
       item.product.enName = input.value;
       markDirty();
     });

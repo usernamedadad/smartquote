@@ -475,7 +475,7 @@ function renderProductsSection(data) {
         <div class="fse-product-card" data-fse-item="${i}">
           <div class="fse-product-main">
             <span class="fse-product-no">${i + 1}</span>
-            <span class="fse-product-name">${escapeHtml(item.product?.enName || item.product?.cnName || "Product")}</span>
+            <input class="fse-product-name-input" type="text" value="${escapeHtml(item.product?.enName || "Product")}" data-fse-product-name="${i}" placeholder="Product Name">
             <span class="fse-product-total">${escapeHtml(pr.totalAmount || "")}</span>
           </div>
           <div class="fse-product-fields">
@@ -758,6 +758,17 @@ function handleCardInput(e) {
     if (qty && price) item.pricing.totalAmount = `$${(qty * price).toLocaleString("en-US")}`;
     updateQuoteTotals(state.activeProject.data);
     scheduleDebouncedRender();
+    return;
+  }
+
+  if (input.dataset.fseProductName != null) {
+    recordUndoSnapshot();
+    const index = Number(input.dataset.fseProductName);
+    const items = state.activeProject.data.quoteItems;
+    if (items[index]) {
+      items[index].product.enName = input.value;
+      scheduleDebouncedRender();
+    }
     return;
   }
 

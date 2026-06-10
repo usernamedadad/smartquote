@@ -641,15 +641,27 @@
   flex-shrink: 0;
 }
 
-.fse-product-name {
+.fse-product-name-input {
   flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #e2e8f0;
   font-size: 13px;
   font-weight: 600;
-  color: #e2e8f0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.fse-product-name-input:hover {
+  border-bottom-color: #4a5568;
+}
+
+.fse-product-name-input:focus {
+  border-bottom-color: #6b9fff;
 }
 
 .fse-product-total {

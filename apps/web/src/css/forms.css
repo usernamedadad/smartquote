@@ -497,6 +497,29 @@
   white-space: nowrap;
 }
 
+.product-name-input {
+  width: 220px;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #1c2a40;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.product-name-input:hover {
+  border-bottom-color: #c3d1e4;
+}
+
+.product-name-input:focus {
+  border-bottom-color: var(--accent);
+}
+
 .accessory-name-input {
   width: 160px;
   min-width: 0;
