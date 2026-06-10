@@ -3,16 +3,17 @@
  */
 import { state, modules } from "../state.js";
 import {
-  escapeHtml, splitParameterValue, setByPath, productPreviewUrl, productSeriesLabel,
+  escapeHtml, fileToDataUrl, splitParameterValue, setByPath, productPreviewUrl, productSeriesLabel,
   normalizeTerms, calculateTotalAmount, isLineOnlyParameter, normalizeGalleryLayout,
   normalizeQuoteItems, createQuoteItemFromProduct, createCraneSupportQuoteItems,
   updateQuoteTotals, recalcAccessoryTotal, sumAmountStrings, parseAmountNumber, extractNumeric,
   GALLERY_PRESETS, normalizeGalleryPreset
 } from "../utils.js";
-import { parameterIconSvg } from "../icons.js";
+import { parameterIconSvg, iconSvg } from "../icons.js";
 import { recordUndoSnapshot } from "../history.js";
+import { api, loadWorkspace } from "../api.js";
 import { markDirty } from "./preview.js";
-import { showAppModal, showContentModal } from "../ui.js";
+import { showAppModal, showContentModal, showToast } from "../ui.js";
 import { showBulkImportModal, parseImportText } from "../bulk-import.js";
 import { emptyMarkup } from "./projects.js";
 
@@ -419,9 +420,9 @@ function quoteItemImageEditorMarkup(index, image) {
       </div>
       <button class="quote-item-image-thumb" type="button" data-select-item-image="${index}" title="选择产品图片">
         ${image ? `<img src="${image.url}" alt="${escapeHtml(image.originalName)}">` : `<span>+</span>`}
+        ${image ? `<span class="thumb-remove image-card-delete" data-remove-item-image="${index}" title="删除图片">×</span>` : ""}
       </button>
       <div class="quote-item-image-actions">
-        <button class="ghost-button" type="button" data-select-item-image="${index}">选择</button>
         ${image ? `<button class="ghost-button" type="button" data-remove-item-image="${index}">移除</button>` : ""}
       </div>
     </section>
@@ -430,10 +431,13 @@ function quoteItemImageEditorMarkup(index, image) {
 
 function chooseImageMarkup(image, selectedIds) {
   return `
-    <button class="choose-image ${selectedIds.map(Number).includes(Number(image.id)) ? "selected" : ""}" draggable="true" data-toggle-image="${image.id}">
-      <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
-      <span>${escapeHtml(image.originalName)}</span>
-    </button>
+    <div class="choose-image ${selectedIds.map(Number).includes(Number(image.id)) ? "selected" : ""}" draggable="true" data-toggle-image="${image.id}">
+      <button class="choose-image-select" type="button" draggable="false" title="插入/移除图片">
+        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
+        <span>${escapeHtml(image.originalName)}</span>
+      </button>
+      <button class="choose-image-delete image-card-delete" type="button" data-delete-library-image="${image.id}" title="从图库删除">×</button>
+    </div>
   `;
 }
 
@@ -1029,10 +1033,36 @@ function bindEditorFields(container) {
     input.addEventListener("focus", recordUndoSnapshot);
   });
 
-  container.querySelectorAll("[data-toggle-image]").forEach((button) => {
-    button.addEventListener("click", () => toggleProjectImage(Number(button.dataset.toggleImage)));
-    button.addEventListener("dragstart", () => {
-      state.draggingLibraryImageId = Number(button.dataset.toggleImage);
+  container.querySelectorAll("[data-toggle-image]").forEach((el) => {
+    el.addEventListener("click", () => toggleProjectImage(Number(el.dataset.toggleImage)));
+    el.addEventListener("dragstart", () => {
+      state.draggingLibraryImageId = Number(el.dataset.toggleImage);
+    });
+  });
+
+  container.querySelectorAll("[data-delete-library-image]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const imageId = Number(button.dataset.deleteLibraryImage);
+      try {
+        await api(`/api/images/${imageId}`, { method: "DELETE" });
+        await loadWorkspace();
+        /* 清理引用 */
+        const data = state.activeProject?.data;
+        if (data) {
+          recordUndoSnapshot();
+          data.selectedImageIds = (data.selectedImageIds || []).filter(id => Number(id) !== imageId);
+          (data.quoteItems || []).forEach(item => {
+            if (Number(item.imageId) === imageId) item.imageId = "";
+          });
+          normalizeGalleryLayout(data, state.images);
+          markDirty();
+        }
+        rerenderCurrentModule();
+      } catch (err) {
+        console.error("删除图片失败:", err);
+        showToast("删除失败: " + err.message, { tone: "error" });
+      }
     });
   });
 
@@ -1247,7 +1277,7 @@ function rerenderCurrentModule() {
   if (state.previewFullscreen && _refreshFullscreenCard) _refreshFullscreenCard();
 }
 
-export { addAccessory, selectProduct, removeQuoteItem };
+export { addAccessory, selectProduct, removeQuoteItem, openQuoteItemImagePicker };
 
 /** 仅刷新已选图片列表（拖拽排序用，避免整模块重渲染抖动） */
 export function rerenderSelectedImages() {
@@ -1461,6 +1491,12 @@ function openQuoteItemImagePicker(index) {
       <div class="product-image-picker-grid">
         ${state.images.length ? state.images.map((image) => productImagePickMarkup(image, item.imageId)).join("") : `<div class="empty-state">还没有图片</div>`}
       </div>
+      <div class="product-image-picker-upload">
+        <label class="ghost-button">
+          ${iconSvg("upload")} 从本地上传
+          <input type="file" accept="image/*" id="product-image-upload" hidden>
+        </label>
+      </div>
     `,
     onMount(root, close) {
       root.querySelectorAll("[data-pick-item-image]").forEach((button) => {
@@ -1472,16 +1508,63 @@ function openQuoteItemImagePicker(index) {
           rerenderCurrentModule();
         });
       });
+      root.querySelectorAll("[data-delete-library-image]").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          const imageId = Number(button.dataset.deleteLibraryImage);
+          try {
+            await api(`/api/images/${imageId}`, { method: "DELETE" });
+            await loadWorkspace();
+            /* 如果删除的正是当前产品使用的图片，清除引用 */
+            if (Number(item.imageId) === imageId) {
+              recordUndoSnapshot();
+              item.imageId = "";
+              markDirty();
+            }
+            /* 移除该卡片并刷新 */
+            const card = button.closest(".product-image-pick");
+            if (card) card.remove();
+            const grid = root.querySelector(".product-image-picker-grid");
+            if (grid && !grid.children.length) {
+              grid.innerHTML = `<div class="empty-state">还没有图片</div>`;
+            }
+            rerenderCurrentModule();
+          } catch (err) {
+            console.error("删除图片失败:", err);
+            showToast("删除失败: " + err.message, { tone: "error" });
+          }
+        });
+      });
+      root.querySelector("#product-image-upload")?.addEventListener("change", async (event) => {
+        const file = event.currentTarget.files?.[0];
+        if (!file || !file.type.startsWith("image/")) return;
+        try {
+          const dataUrl = await fileToDataUrl(file);
+          const { image } = await api("/api/images", { method: "POST", body: { filename: file.name, dataUrl } });
+          await loadWorkspace();
+          recordUndoSnapshot();
+          item.imageId = Number(image.id);
+          close("uploaded");
+          markDirty();
+          rerenderCurrentModule();
+        } catch (err) {
+          console.error("产品图片上传失败:", err);
+          showToast("上传失败: " + err.message, { tone: "error" });
+        }
+      });
     }
   });
 }
 
 function productImagePickMarkup(image, currentId) {
   return `
-    <button class="product-image-pick ${Number(image.id) === Number(currentId) ? "selected" : ""}" type="button" data-pick-item-image="${image.id}">
-      <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
-      <span>${escapeHtml(image.originalName)}</span>
-    </button>
+    <div class="product-image-pick ${Number(image.id) === Number(currentId) ? "selected" : ""}">
+      <button class="product-image-pick-select" type="button" data-pick-item-image="${image.id}" title="选择此图片">
+        <img src="${image.url}" alt="${escapeHtml(image.originalName)}">
+        <span>${escapeHtml(image.originalName)}</span>
+      </button>
+      <button class="product-image-pick-delete image-card-delete" type="button" data-delete-library-image="${image.id}" title="从图库删除">×</button>
+    </div>
   `;
 }
 

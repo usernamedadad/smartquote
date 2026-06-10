@@ -21,8 +21,9 @@ let _refreshFullscreenCard;
 let _cardRefreshTimer = 0;
 let _refreshModuleEditor;
 let _moduleRefreshTimer = 0;
+let _openQuoteItemImagePicker;
 
-export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor, syncSectionFromPreview, refreshFullscreenCard, refreshModuleEditor }) {
+export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, switchToModule, refreshEditor, syncSectionFromPreview, refreshFullscreenCard, refreshModuleEditor, openQuoteItemImagePicker }) {
   _rerenderSelectedImages = rerenderSelectedImages;
   _addAccessory = addAccessory;
   _selectProduct = selectProduct;
@@ -32,6 +33,7 @@ export function registerPreviewCallbacks({ rerenderSelectedImages, addAccessory,
   _syncSectionFromPreview = syncSectionFromPreview;
   _refreshFullscreenCard = refreshFullscreenCard;
   _refreshModuleEditor = refreshModuleEditor;
+  _openQuoteItemImagePicker = openQuoteItemImagePicker;
 }
 
 export function markDirty() {
@@ -371,6 +373,16 @@ function bindPreviewInteractiveActions(preview) {
       updateQuoteTotals(state.activeProject.data);
       markDirty();
       if (typeof _refreshEditor === "function") _refreshEditor();
+    });
+  });
+
+  /* 产品图片：点击占位符或已有图片 → 打开图片选择器 */
+  preview.querySelectorAll("[data-product-image-placeholder], [data-product-image-item]").forEach((el) => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const itemIndex = Number(el.dataset.productImagePlaceholder ?? el.dataset.productImageItem);
+      if (typeof _openQuoteItemImagePicker === "function") _openQuoteItemImagePicker(itemIndex);
     });
   });
 }

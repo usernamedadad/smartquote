@@ -240,7 +240,7 @@ export function addImage({ filename, originalName, storagePath, url, mimeType, c
     INSERT INTO images (filename, original_name, storage_path, url, category, mime_type, created_by, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(filename, originalName, storagePath, url, "product", mimeType, createdBy, now());
-  return getImage(result.lastInsertRowid);
+  return getImage(result.lastInsertRowid, createdBy);
 }
 
 export function getImage(id, userId = null, isAdmin = false) {

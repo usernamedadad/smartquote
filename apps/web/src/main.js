@@ -13,7 +13,7 @@ import { renderEditorPage, registerEditorCallbacks } from "./views/editor.js";
 import { registerEditorModulesCallbacks } from "./views/editor-modules.js";
 import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
 import { markDirty, renderQuotePreview, registerPreviewCallbacks } from "./views/preview.js";
-import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, renderModuleEditor } from "./views/editor-modules.js";
+import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, renderModuleEditor, openQuoteItemImagePicker } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
 import { syncSectionFromPreview, refreshFullscreenCard } from "./views/fullscreen-editor.js";
 
@@ -53,6 +53,7 @@ registerPreviewCallbacks({
   syncSectionFromPreview,
   refreshFullscreenCard,
   refreshModuleEditor: renderModuleEditor,
+  openQuoteItemImagePicker,
   refreshEditor: () => {
     /* 全屏中刷新预览区 + 右侧卡片 */
     if (state.previewFullscreen) {

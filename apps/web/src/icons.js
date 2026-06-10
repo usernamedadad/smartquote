@@ -9,6 +9,7 @@ export function iconSvg(name) {
     customer: '<path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path><path d="M4.5 19a5 5 0 0 1 10 0"></path><path d="M15.5 8.5h3M17 7v3"></path>',
     parameters: '<path d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM14 16h5"></path><path d="M16.5 13.5v5"></path>',
     image: '<path d="M5 6h14v13H5z"></path><path d="m7.5 16 3.5-4 3 3 2-2.5 2.5 3.5"></path><path d="M8.5 9.5h.01"></path>',
+    upload: '<path d="M12 3v12"></path><path d="m7.5 7.5 4.5-4.5 4.5 4.5"></path><path d="M5 17v2h14v-2"></path>',
     price: '<path d="M12 4v16"></path><path d="M16 7.5c-.8-.9-2-1.4-3.4-1.4-2.2 0-3.6 1-3.6 2.5 0 3.7 7.5 1.6 7.5 5.5 0 1.6-1.5 2.8-3.9 2.8-1.7 0-3.1-.6-4.1-1.6"></path>',
     terms: '<path d="M7 4h8l3 3v15H7z"></path><path d="M15 4v4h4M9.5 12h6M9.5 16h6"></path>',
     footer: '<path d="M5 6h14v13H5z"></path><path d="M8 15h8M8 10h4"></path>',
