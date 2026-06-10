@@ -11,7 +11,7 @@
             "Work duty": "FEM 2m (ISO M5)",
             "Control method": "Pendant + Remote Control",
             "VFD": "Schneider",
-            "Main Electrical components": "Schneider",
+            "Main electrical components": "Schneider",
             "Load limiter and lifting height limiter included": true
         }
     },
@@ -68,7 +68,7 @@
             "Control method": "Pendant + Remote control",
             "Load limiter and lifting height limiter included": true,
             "VFD": "Schneider",
-            "Main Electrical components": "Schneider"
+            "Main electrical components": "Schneider"
         }
     },
     {
@@ -83,7 +83,7 @@
             "Control method": "Pendant + Remote control",
             "Load limiter and lifting height limiter included": true,
             "VFD": "Schneider",
-            "Main Electrical components": "Schneider",
+            "Main electrical components": "Schneider",
             "Conductor Bar System": "4P 10 mm²",
             "Crane Rails": true,
             "Steel Structure Parts": ["Connecting beam", "Runway beam", "Column", "Support between columns"]
