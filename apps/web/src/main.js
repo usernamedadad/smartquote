@@ -15,7 +15,7 @@ import { renderUsersPage, registerUsersCallbacks } from "./views/users.js";
 import { markDirty, renderQuotePreview, registerPreviewCallbacks } from "./views/preview.js";
 import { rerenderSelectedImages, addAccessory, selectProduct, removeQuoteItem, renderModuleEditor } from "./views/editor-modules.js";
 import { registerTranslateCallbacks } from "./translate.js";
-import { syncSectionFromPreview, refreshFullscreenCard, registerFullscreenCallbacks } from "./views/fullscreen-editor.js";
+import { syncSectionFromPreview, refreshFullscreenCard } from "./views/fullscreen-editor.js";
 
 /* ---- 注册回调（解决循环依赖） ---- */
 
@@ -26,7 +26,6 @@ registerUsersCallbacks({ renderProjectsPage });
 registerProjectsCallbacks({ openProject, uploadImage, uploadImageFromFile, deleteImage, renderUsersPage });
 registerEditorCallbacks({ openProject, loadWorkspace });
 registerEditorModulesCallbacks({ renderEditorPage, uploadImageFromFile, deleteImage, refreshFullscreenCard });
-registerFullscreenCallbacks({ uploadImageFromFile });
 
 /** 滚动到指定产品/配件卡片，补偿 sticky 产品条高度 */
 function scrollToQuoteItem(itemIndex) {

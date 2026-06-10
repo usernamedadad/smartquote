@@ -176,12 +176,12 @@ function galleryGridMarkup(data, images, options) {
     return `<figure${span}${figDrag}${figIdx}><img src="${src}" alt="${escapeHtml(image.originalName)}"></figure>`;
   }).filter(Boolean).join("");
 
-  const drag = options.draggable ? `draggable="true" data-preview-section="gallery"` : "";
+  const drag = options.draggable ? `draggable="true"` : "";
   const dragClass = options.draggable ? " draggable-preview-section" : "";
   const classes = options.galleryClasses ? ` ${options.galleryClasses}` : "";
 
   return `
-    <section class="gallery-section${dragClass}" ${drag} aria-label="Product images">
+    <section class="gallery-section${dragClass}" data-preview-section="gallery" ${drag} aria-label="Product images">
       <div class="gallery gallery-preset-${preset} ${countClass}${classes}">${items}</div>
     </section>
   `;

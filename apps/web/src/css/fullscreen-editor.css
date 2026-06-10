@@ -1377,3 +1377,119 @@
   color: #1d66ff;
   background: rgba(29, 102, 255, 0.08);
 }
+
+/* ============================================================
+ *  Images section — gallery layout & image list (dark card)
+ * ============================================================ */
+
+.fse-gallery-layout {
+  margin-bottom: 16px;
+}
+
+.fse-gallery-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fse-gallery-preset {
+  display: grid;
+  gap: 5px;
+  padding: 8px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.fse-gallery-preset:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.fse-gallery-preset.active {
+  border-color: #1d66ff;
+  background: rgba(29, 102, 255, 0.12);
+  color: #fff;
+}
+
+.fse-gallery-preset .layout-icon i {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.fse-gallery-preset.active .layout-icon i {
+  border-color: rgba(29, 102, 255, 0.7);
+  background: rgba(29, 102, 255, 0.15);
+}
+
+.fse-gallery-preset em {
+  font-size: 10px;
+  font-style: normal;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* gallery image list */
+.fse-gallery-items {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.fse-gallery-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fse-gallery-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.fse-gallery-name {
+  flex: 1;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fse-gallery-act {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fse-gallery-act:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.fse-gallery-act--del:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}

@@ -2,19 +2,12 @@
  * 全屏 Pro 编辑模式：画布 + 命令栏 + 上下文卡片
  */
 import { state } from "../state.js";
-import { escapeHtml, setByPath, updateQuoteTotals, parseAmountNumber, extractNumeric } from "../utils.js";
+import { escapeHtml, setByPath, updateQuoteTotals, parseAmountNumber, extractNumeric, GALLERY_PRESETS, normalizeGalleryLayout, normalizeGalleryPreset } from "../utils.js";
 import { recordUndoSnapshot, undoLastChange, restoreOriginalProjectData } from "../history.js";
 import { renderQuotePreview, markDirty, quietDirty, fitPreviewToPanel, setPreviewZoom } from "./preview.js";
 import { api } from "../api.js";
 import { showToast } from "../ui.js";
 import { selectProduct, recalcFreightFromTotal, removeQuoteItem } from "./editor-modules.js";
-
-/* ---- 跨模块回调 ---- */
-let _uploadImageFromFile;
-
-export function registerFullscreenCallbacks({ uploadImageFromFile }) {
-  _uploadImageFromFile = uploadImageFromFile;
-}
 
 /* ---- 常量 ---- */
 
@@ -25,6 +18,7 @@ const SECTION_ICONS = {
   pricing: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
   terms: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
   footer: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="15" x2="21" y2="15"/></svg>`,
+  images: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
 };
 
 const SECTIONS = [
@@ -34,6 +28,7 @@ const SECTIONS = [
   { id: "pricing", en: "Pricing", zh: "定价", previewSection: "pricing", icon: "pricing" },
   { id: "terms", en: "Terms", zh: "条款", previewSection: "terms", icon: "terms" },
   { id: "footer", en: "Footer", zh: "页脚", previewSection: "footer", icon: "footer" },
+  { id: "images", en: "Images", zh: "图片", previewSection: "gallery", icon: "images" },
 ];
 
 /* 中英文标签 */
@@ -49,10 +44,12 @@ const LABELS = {
     addTerm: "+ Add Term", titlePlaceholder: "Title", contentPlaceholder: "Content...",
     website: "Website", phone: "Phone", addProductTitle: "Add Product",
     langSwitch: "中文", moveUp: "Up", moveDown: "Down", duplicate: "Copy",
-    shortcutHint: "1-6 Sections · ↑↓ Products · Ctrl+S Save",
+    shortcutHint: "1-7 Sections · ↑↓ Products · Ctrl+S Save",
     pureMode: "Clean Preview", exitPure: "Exit Preview",
-    imgUpload: "Upload", imgLibrary: "Library", imgRemove: "Remove",
-    imgAddTitle: "Select Image", imgUploadNew: "+ Upload New", imgNoImages: "No images yet",
+    imgLibrary: "Library", imgRemove: "Remove",
+    imgAddTitle: "Select Image", imgNoImages: "No images yet",
+    galleryLayout: "Gallery Layout", galleryTitle: "Gallery", galleryReplace: "Replace", galleryRemove: "Remove",
+    galleryEmpty: "No images in gallery. Click images in preview to add.",
   },
   zh: {
     save: "保存", export: "导出 PDF", close: "关闭", editPanel: "编辑面板",
@@ -65,10 +62,12 @@ const LABELS = {
     addTerm: "+ 添加条款", titlePlaceholder: "标题", contentPlaceholder: "内容...",
     website: "网站", phone: "电话", addProductTitle: "添加产品",
     langSwitch: "EN", moveUp: "上移", moveDown: "下移", duplicate: "复制",
-    shortcutHint: "1-6 切换区块 · ↑↓ 切换产品 · Ctrl+S 保存",
+    shortcutHint: "1-7 切换区块 · ↑↓ 切换产品 · Ctrl+S 保存",
     pureMode: "纯净预览", exitPure: "退出预览",
-    imgUpload: "上传", imgLibrary: "图库", imgRemove: "移除",
-    imgAddTitle: "选择图片", imgUploadNew: "+ 上传新图", imgNoImages: "暂无图片",
+    imgLibrary: "图库", imgRemove: "移除",
+    imgAddTitle: "选择图片", imgNoImages: "暂无图片",
+    galleryLayout: "画廊布局", galleryTitle: "画廊", galleryReplace: "替换", galleryRemove: "移除",
+    galleryEmpty: "画廊中暂无图片，点击预览区图片添加。",
   },
 };
 
@@ -223,6 +222,8 @@ function installScrollSpy() {
 
   scrollSpyHandler = () => {
     if (scrollSpySuppressed) return;
+    /* images section 无对应的大面积预览区域，scroll spy 不应覆盖其药丸高亮 */
+    if (activeSection === "images") return;
     const scrollTop = scroll.scrollTop;
     const viewportH = scroll.clientHeight;
     const preview = document.querySelector("#quote-preview");
@@ -294,7 +295,7 @@ function installKeyboardShortcuts() {
       return;
     }
 
-    /* 1-6 切换 section */
+    /* 1-7 切换 section */
     const num = parseInt(e.key);
     if (num >= 1 && num <= SECTIONS.length) {
       switchSection(SECTIONS[num - 1].id);
@@ -392,6 +393,7 @@ function renderSectionContent(sectionId) {
     case "pricing": return renderPricingSection(data);
     case "terms": return renderTermsSection(data);
     case "footer": return renderFooterSection(data);
+    case "images": return renderImagesSection(data);
     default: return "";
   }
 }
@@ -535,6 +537,48 @@ function renderFooterSection(data) {
     ${fseField(t("email"), "footer.email", f.email)}
     ${fseField(t("phone"), "footer.phone", f.phone)}
   </div>`;
+}
+
+function renderImagesSection(data) {
+  const galleryPreset = normalizeGalleryPreset(data);
+  const selectedIds = data.selectedImageIds || [];
+
+  /* 布局选择 */
+  let html = `<div class="fse-gallery-layout">
+    <div class="fse-sub-title">${t("galleryLayout")}</div>
+    <div class="fse-gallery-presets">
+      ${GALLERY_PRESETS.map((p) => `
+        <button class="fse-gallery-preset${p.id === galleryPreset ? " active" : ""}" type="button" data-fse-gallery-preset="${p.id}" title="${escapeHtml(p.label)}">
+          <span class="layout-icon layout-${p.id}"><i></i><i></i><i></i><i></i></span>
+          <em>${escapeHtml(p.label)}</em>
+        </button>`).join("")}
+    </div>
+  </div>`;
+
+  /* 画廊图片列表 */
+  html += `<div class="fse-sub-title">${t("galleryTitle")}</div>`;
+  if (!selectedIds.length) {
+    html += `<div class="fse-empty" style="margin:8px 0">${t("galleryEmpty")}</div>`;
+  } else {
+    html += '<div class="fse-gallery-items">';
+    selectedIds.forEach((id, idx) => {
+      const img = state.images.find((im) => Number(im.id) === Number(id));
+      if (!img) return;
+      html += `<div class="fse-gallery-item" data-fse-gallery-item="${idx}">
+        <img src="${img.url}" alt="${escapeHtml(img.originalName)}" class="fse-gallery-thumb">
+        <span class="fse-gallery-name">${escapeHtml(img.originalName)}</span>
+        <button class="fse-gallery-act" type="button" data-fse-replace-gallery="${idx}" title="${t("galleryReplace")}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+        <button class="fse-gallery-act fse-gallery-act--del" type="button" data-fse-remove-gallery="${idx}" title="${t("galleryRemove")}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`;
+    });
+    html += "</div>";
+  }
+
+  return html;
 }
 
 /* ============================================================
@@ -846,6 +890,39 @@ function handleCardClick(e) {
     return;
   }
 
+  /* 画廊布局切换 */
+  if (target.closest("[data-fse-gallery-preset]")) {
+    const preset = target.closest("[data-fse-gallery-preset]").dataset.fseGalleryPreset;
+    recordUndoSnapshot();
+    const data = state.activeProject.data;
+    data.layout.galleryPreset = preset;
+    normalizeGalleryLayout(data, state.images);
+    markDirty();
+    refreshCardBody();
+    return;
+  }
+
+  /* 画廊图片替换 → 打开图库选择器 */
+  if (target.closest("[data-fse-replace-gallery]")) {
+    const idx = Number(target.closest("[data-fse-replace-gallery]").dataset.fseReplaceGallery);
+    const data = state.activeProject.data;
+    const currentImageId = (data.selectedImageIds || [])[idx] || null;
+    showImageLibraryPicker({ type: "gallery", index: idx, currentImageId });
+    return;
+  }
+
+  /* 画廊图片移除 */
+  if (target.closest("[data-fse-remove-gallery]")) {
+    const idx = Number(target.closest("[data-fse-remove-gallery]").dataset.fseRemoveGallery);
+    const data = state.activeProject.data;
+    recordUndoSnapshot();
+    data.selectedImageIds.splice(idx, 1);
+    normalizeGalleryLayout(data, state.images);
+    markDirty();
+    refreshCardBody();
+    return;
+  }
+
   /* 日期图标 */
   if (target.closest(".fse-date-icon")) {
     const wrap = target.closest(".fse-date-wrap");
@@ -991,7 +1068,7 @@ function scrollToPreviewItem(itemIndex) {
 export function syncSectionFromPreview(sectionName) {
   const map = {
     basic: "info", parties: "parties", pricing: "products",
-    terms: "terms", footer: "footer",
+    terms: "terms", footer: "footer", gallery: "images",
   };
   const sectionId = map[sectionName];
   if (sectionId && sectionId !== activeSection) switchSection(sectionId);
@@ -1329,10 +1406,6 @@ function showImageActionMenu(targetEl, type, index) {
   const currentImageId = getCurrentImageId(realType, index);
 
   let btns = "";
-  btns += `<button class="fse-img-menu-btn" type="button" data-img-action="upload">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    <span>${hasImage ? t("imgUpload") : t("imgUpload")}</span>
-  </button>`;
   btns += `<button class="fse-img-menu-btn" type="button" data-img-action="library">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
     <span>${t("imgLibrary")}</span>
@@ -1346,10 +1419,6 @@ function showImageActionMenu(targetEl, type, index) {
   menu.innerHTML = btns;
 
   /* 事件 */
-  menu.querySelector("[data-img-action='upload']")?.addEventListener("click", () => {
-    closeImageActionMenu();
-    uploadAndSelectImage(realType, index);
-  });
   menu.querySelector("[data-img-action='library']")?.addEventListener("click", () => {
     closeImageActionMenu();
     showImageLibraryPicker({ type: realType, index, currentImageId });
@@ -1401,6 +1470,7 @@ function removeImage(type, index) {
 
   markDirty();
   renderQuotePreview();
+  if (activeSection === "images") refreshCardBody();
 }
 
 function selectImage(type, index, imageId) {
@@ -1422,38 +1492,7 @@ function selectImage(type, index, imageId) {
 
   markDirty();
   renderQuotePreview();
-}
-
-/* ---- 上传并选入 ---- */
-
-function uploadAndSelectImage(type, index) {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/*";
-  input.style.display = "none";
-  document.body.appendChild(input);
-
-  input.addEventListener("change", async () => {
-    const file = input.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      input.remove();
-      return;
-    }
-    try {
-      await _uploadImageFromFile(file);
-      /* 上传完成后 state.images 已刷新，取最新添加的图片 */
-      const newImage = state.images[state.images.length - 1];
-      if (newImage) {
-        selectImage(type, index, Number(newImage.id));
-      }
-      showToast("图片已上传", { tone: "success" });
-    } catch {
-      showToast("上传失败", { tone: "error" });
-    }
-    input.remove();
-  });
-
-  input.click();
+  if (activeSection === "images") refreshCardBody();
 }
 
 /* ---- 图片库选择弹窗 ---- */
@@ -1485,12 +1524,6 @@ function showImageLibraryPicker({ type, index, currentImageId }) {
         <button type="button" class="fse-img-picker-close" data-close-img-picker>✕</button>
       </div>
       <div class="fse-img-picker-grid">${cards}</div>
-      <div class="fse-img-picker-foot">
-        <button class="fse-img-picker-upload" type="button" data-img-picker-upload>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          ${t("imgUploadNew")}
-        </button>
-      </div>
     </div>`;
 
   panel.appendChild(overlay);
@@ -1507,35 +1540,5 @@ function showImageLibraryPicker({ type, index, currentImageId }) {
       selectImage(type, index, imageId);
       overlay.remove();
     }
-  });
-
-  overlay.querySelector("[data-img-picker-upload]")?.addEventListener("click", async () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.style.display = "none";
-    document.body.appendChild(input);
-
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file || !file.type.startsWith("image/")) {
-        input.remove();
-        return;
-      }
-      try {
-        await _uploadImageFromFile(file);
-        const newImage = state.images[state.images.length - 1];
-        if (newImage) {
-          selectImage(type, index, Number(newImage.id));
-        }
-        showToast("图片已上传", { tone: "success" });
-      } catch {
-        showToast("上传失败", { tone: "error" });
-      }
-      input.remove();
-      overlay.remove();
-    });
-
-    input.click();
   });
 }
