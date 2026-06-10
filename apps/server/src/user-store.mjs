@@ -92,6 +92,8 @@ export function deleteUser(id) {
   if (!user || user.role === "admin") return false;
   txFn(() => {
     db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM images WHERE created_by = ?").run(id);
+    db.prepare("DELETE FROM projects WHERE created_by = ?").run(id);
     db.prepare("DELETE FROM users WHERE id = ?").run(id);
   });
   return true;
