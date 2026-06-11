@@ -746,8 +746,8 @@
 /* 产品定价快捷字段 */
 .fse-product-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   margin-top: 8px;
 }
 
@@ -785,7 +785,8 @@
 .fse-input-with-suffix {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  position: relative;
 }
 
 .fse-input-with-suffix input {
@@ -799,6 +800,16 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.35);
   white-space: nowrap;
+}
+
+/* 全屏数量/单价加减按钮：小尺寸紧贴 */
+.fse-input-with-suffix .fse-inc-btn {
+  width: 22px;
+  height: 26px;
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 0;
+  line-height: 1;
 }
 
 /* #4 产品快捷操作按钮 */

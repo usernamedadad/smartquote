@@ -479,8 +479,8 @@ function renderProductsSection(data) {
             <span class="fse-product-total">${escapeHtml(pr.totalAmount || "")}</span>
           </div>
           <div class="fse-product-fields">
-            ${fseInlineField(t("qty"), `item-pricing:${i}:quantity`, extractNumeric(pr.quantity), qtySuffix(pr.quantity), `fse-qty-suffix-${i}`)}
-            ${fseInlineField(t("price"), `item-pricing:${i}:unitPrice`, extractNumeric(pr.unitPrice), "/set")}
+            ${fseInlineField(t("qty"), `item-pricing:${i}:quantity`, extractNumeric(pr.quantity), qtySuffix(pr.quantity), `fse-qty-suffix-${i}`, `${i}:quantity`)}
+            ${fseInlineField(t("price"), `item-pricing:${i}:unitPrice`, extractNumeric(pr.unitPrice), "/set", null, `${i}:unitPrice`)}
           </div>
           <div class="fse-product-actions">
             <button type="button" class="fse-action-btn" data-fse-move-up="${i}" title="${t('moveUp')}">↑</button>
@@ -609,13 +609,17 @@ function fseDateField(label, path, value) {
     </label>`;
 }
 
-function fseInlineField(label, dataAttr, value, suffix, suffixId) {
+function fseInlineField(label, dataAttr, value, suffix, suffixId, stepKey) {
+  const stepBtns = stepKey
+    ? `<button class="fse-inc-btn" type="button" data-fse-step="${stepKey}:1">↑</button><button class="fse-inc-btn" type="button" data-fse-step="${stepKey}:-1">↓</button>`
+    : "";
   return `
     <label class="fse-inline-field">
       <span>${escapeHtml(label)}</span>
       <span class="fse-input-with-suffix">
         <input data-fse-item-pricing="${dataAttr}" value="${escapeHtml(String(value || ""))}" autocomplete="off" inputmode="decimal">
         ${suffix ? `<span class="fse-field-suffix" ${suffixId ? `id="${suffixId}"` : ""}>${escapeHtml(suffix)}</span>` : ""}
+        ${stepBtns}
       </span>
     </label>`;
 }
@@ -823,6 +827,20 @@ function handleCardClick(e) {
     input.value = bumpTrailingNumber(input.value, Number(delta));
     setByPath(state.activeProject.data, path, input.value);
     markDirty();
+    return;
+  }
+
+  /* 数量/单价加减按钮 */
+  if (target.closest("[data-fse-step]")) {
+    const raw = target.closest("[data-fse-step]").dataset.fseStep;
+    const [index, field, delta] = raw.split(":");
+    const input = target.closest(".fse-input-with-suffix")?.querySelector("input");
+    if (!input) return;
+    recordUndoSnapshot();
+    let val = parseFloat(input.value) || 0;
+    val = Math.max(0, val + Number(delta));
+    input.value = val;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
     return;
   }
 

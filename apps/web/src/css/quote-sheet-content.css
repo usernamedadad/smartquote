@@ -53,14 +53,17 @@
 
 .quote-sheet .pricing-table th:nth-child(3) {
   width: 124px;
+  text-align: left;
 }
 
 .quote-sheet .pricing-table th:nth-child(4) {
   width: 128px;
+  text-align: left;
 }
 
 .quote-sheet .pricing-table th:nth-child(5) {
   width: 147px;
+  text-align: left;
 }
 
 .quote-sheet .product-row td {
@@ -80,7 +83,12 @@
   height: auto;
   padding: 1px 0;
   font-size: 16.5px;
-  text-align: center;
+  text-align: left;
+}
+
+.quote-sheet .accessory-detail-row td:nth-child(2),
+.quote-sheet .accessory-detail-row td:nth-child(3) {
+  padding-left: 10px;
 }
 
 .quote-sheet .accessory-detail-row td:nth-child(4) {
@@ -115,8 +123,8 @@
 
 .quote-sheet .product-row td:nth-child(3),
 .quote-sheet .product-row td:nth-child(4) {
-  padding: 0;
-  text-align: center;
+  padding: 0 0 0 10px;
+  text-align: left;
 }
 
 .quote-sheet .product-row td:nth-child(5) {

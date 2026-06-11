@@ -169,9 +169,11 @@ function quoteItemEditorMarkup(item, index, allItems) {
         </div>
       </div>
       <div class="quote-item-body">
-        <div class="form-grid three compact-pricing-grid">
-          ${itemPricingFieldMarkup("数量", index, "quantity", item.pricing.quantity)}
-          ${itemPricingFieldMarkup("单价", index, "unitPrice", item.pricing.unitPrice)}
+        <div class="compact-pricing-grid">
+          <div class="pricing-row-main">
+            ${itemPricingFieldMarkup("数量", index, "quantity", item.pricing.quantity)}
+            ${itemPricingFieldMarkup("单价", index, "unitPrice", item.pricing.unitPrice)}
+          </div>
           ${itemPricingFieldMarkup("行总价", index, "totalAmount", item.pricing.totalAmount)}
         </div>
         ${quoteItemImageEditorMarkup(index, productImage)}
@@ -238,20 +240,28 @@ function accessoryParamGroupMarkup(itemIndex, paramIndex, param) {
       <div class="accessory-param-pricing-row">
         <label class="param-field">
           <span>数量</span>
-          <span class="param-input-wrap">
-            <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:quantity" value="${escapeHtml(extractNumeric(param.quantity))}" inputmode="decimal" placeholder="0">
-            ${qtySuffixHtml}
+          <span class="step-field-wrap">
+            <span class="param-input-wrap">
+              <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:quantity" value="${escapeHtml(extractNumeric(param.quantity))}" inputmode="decimal" placeholder="0">
+              ${qtySuffixHtml}
+            </span>
+            <button class="inc-btn inc-btn--sm" type="button" data-acc-step="${itemIndex}:${paramIndex}:quantity:1">↑</button>
+            <button class="inc-btn inc-btn--sm" type="button" data-acc-step="${itemIndex}:${paramIndex}:quantity:-1">↓</button>
           </span>
         </label>
         <label class="param-field">
           <span>单价</span>
-          <span class="param-input-wrap">
-            <em>$</em>
-            <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:unitPrice" value="${escapeHtml(extractNumeric(param.unitPrice))}" inputmode="decimal" placeholder="0">
-            ${priceSuffixHtml}
+          <span class="step-field-wrap">
+            <span class="param-input-wrap">
+              <em>$</em>
+              <input data-accessory-param-pricing="${itemIndex}:${paramIndex}:unitPrice" value="${escapeHtml(extractNumeric(param.unitPrice))}" inputmode="decimal" placeholder="0">
+              ${priceSuffixHtml}
+            </span>
+            <button class="inc-btn inc-btn--sm" type="button" data-acc-step="${itemIndex}:${paramIndex}:unitPrice:1">↑</button>
+            <button class="inc-btn inc-btn--sm" type="button" data-acc-step="${itemIndex}:${paramIndex}:unitPrice:-1">↓</button>
           </span>
         </label>
-        <label class="param-field">
+        <label class="param-field param-field--total">
           <span>总价</span>
           <span class="param-input-wrap">
             <em>$</em>
@@ -264,26 +274,31 @@ function accessoryParamGroupMarkup(itemIndex, paramIndex, param) {
 }
 
 function itemPricingFieldMarkup(label, index, field, value) {
-  if (field === "unitPrice" || field === "totalAmount") {
+  if (field === "totalAmount") {
     return `
       <label class="field">
         <span>${escapeHtml(label)}</span>
-        <span class="money-control ${field === "unitPrice" ? "with-suffix" : ""}">
+        <span class="money-control">
           <em>$</em>
           <input data-item-pricing="${index}:${field}" value="${escapeHtml(extractNumeric(value))}" inputmode="decimal">
-          ${field === "unitPrice" ? "<b>/set</b>" : ""}
         </span>
       </label>
     `;
   }
+  const isQty = field === "quantity";
   const num = parseAmountNumber(value);
-  const suffix = Number.isFinite(num) && num !== 1 ? " sets" : " set";
+  const suffix = isQty ? (Number.isFinite(num) && num !== 1 ? " sets" : " set") : "/set";
   return `
     <label class="field">
       <span>${escapeHtml(label)}</span>
-      <span class="money-control with-suffix">
-        <input data-item-pricing="${index}:${field}" value="${escapeHtml(extractNumeric(value))}" inputmode="decimal">
-        <b data-qty-suffix="${index}">${suffix}</b>
+      <span class="step-field-wrap">
+        <span class="money-control with-suffix">
+          ${!isQty ? "<em>$</em>" : ""}
+          <input data-item-pricing="${index}:${field}" value="${escapeHtml(extractNumeric(value))}" inputmode="decimal">
+          <b ${isQty ? `data-qty-suffix="${index}"` : ""}>${suffix}</b>
+        </span>
+        <button class="inc-btn" type="button" data-step="${index}:${field}:1">↑</button>
+        <button class="inc-btn" type="button" data-step="${index}:${field}:-1">↓</button>
       </span>
     </label>
   `;
@@ -608,6 +623,34 @@ function bindEditorFields(container) {
       input.value = bumpTrailingNumber(input.value, Number(delta));
       setByPath(state.activeProject.data, path, input.value);
       markDirty();
+    });
+  });
+
+  /* 产品数量/单价加减按钮 */
+  container.querySelectorAll("[data-step]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [index, field, delta] = btn.dataset.step.split(":");
+      const input = btn.closest(".step-field-wrap")?.querySelector("input");
+      if (!input) return;
+      recordUndoSnapshot();
+      let val = parseFloat(input.value) || 0;
+      val = Math.max(0, val + Number(delta));
+      input.value = val;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+
+  /* 配件参数数量/单价加减按钮 */
+  container.querySelectorAll("[data-acc-step]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [itemIdx, paramIdx, field, delta] = btn.dataset.accStep.split(":");
+      const input = btn.closest(".step-field-wrap")?.querySelector("input");
+      if (!input) return;
+      recordUndoSnapshot();
+      let val = parseFloat(input.value) || 0;
+      val = Math.max(0, val + Number(delta));
+      input.value = val;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     });
   });
 

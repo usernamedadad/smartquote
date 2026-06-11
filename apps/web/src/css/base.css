@@ -131,6 +131,20 @@ textarea:focus {
   border-color: #c7d4f5;
 }
 
+/* 数量/单价字段的 flex 容器 */
+.step-field-wrap {
+  display: flex;
+  gap: 4px;
+}
+
+/* 配件参数的小尺寸箭头 */
+.inc-btn--sm {
+  width: 26px;
+  height: 28px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
 .primary-button,
 .ghost-button,
 .icon-button {
