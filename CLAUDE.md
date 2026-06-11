@@ -13,7 +13,7 @@ npm run dev      # 开发模式（--watch 自动重启）
 npm start        # 生产模式
 ```
 
-无构建步骤、无测试、无 linter。要求 **Node.js >= 24**（依赖内置 `node:sqlite`）。
+无构建步骤、无测试、无 linter。要求 **Node.js >= 24**（依赖内置 `node:sqlite`）。`package.json` 使用 `--no-warnings` 抑制实验性 API 警告。
 
 ## Architecture
 
@@ -95,11 +95,10 @@ main.js ← 以上所有（顶层编排，无人导入它）
 - **图片上传**：通过 base64 data URL 在 JSON body 中传输（非 multipart），上限 16MB
 - **报价编号格式**：`QT-YYYYMMDD-NNN`（日期 + 当日全局序号，取最大序号+重试防并发撞号）
 - **API 错误信息**为中文，报价单输出为英文
-- **图片画廊**：CSS Grid 自适应布局（根据图片数量：1 全宽 / 2 两列 / 3 上宽下两窄 / 4 两列两行 / 5-6 三列两行），行高 `auto`，图片按原始比例自然显示（`width: 100%; height: auto`）。用户只需选择图片 + 调整顺序，无手动定位。画廊 CSS 只需维护一处：`css/quote-sheet-content.css`（`renderQuote.mjs` 直接读取该文件用于 PDF 导出）。PDF 导出时通过覆盖规则去掉预览中的 figure 边框/背景
+- **图片画廊**：CSS Grid 自适应布局（1~6 张自动适配列数），行高 `auto`，图片按原始比例显示。用户只需选择图片 + 调整顺序，无手动定位。画廊样式和 PDF 覆盖规则详见 Development Notes
 - **布局可定制**：报价单的 sections 和 parties 顺序可通过拖拽重排，存储在 `data.layout` 中
 - **项目列表页**：三栏布局（侧栏导航 + 主区域 + 信息栏），顶部显示头像+名称+角色标签，卡片网格第一个为虚线框「+」新建卡片，后续为项目卡片（顶部真实报价单缩略预览 + 下方详细信息），右下角三点菜单含重命名/删除操作。`normalizeProjectListRow` 返回完整 `data` 字段供前端渲染预览和计算金额。侧栏不含帮助模块，底部仅有退出登录
 - **个人中心页**（`views/profile.js`）：蓝色渐变 banner + 首字母头像 + 角色标签 → 统计卡片（项目数/图片数/登录账号）→ 联系方式表单（6 字段，2 列 grid）→ 密码修改表单。sales 用户可编辑自己的联系方式（`PUT /api/me/profile`），admin 只能在用户管理页编辑
-- **配件序号**：配件卡片的序号圆圈为橙色（`.is-accessory .quote-item-no { background: #e8830c }`），产品为蓝色，视觉区分
 - **包装条款差异化**：葫芦类（product_1~4）使用 `"Packed in strong plywood crate."`，桥机类（product_5~6）使用防水布+木板箱的长文本。创建项目时按默认产品类型选择（`server.mjs` 的 `getPackageText()`）；编辑器中产品增删/移动时 `syncPackageTerm()` 自动根据 `quoteItems[0]` 的类型更新 PACKAGE 条款
 
 ### User Isolation & Auth
@@ -152,58 +151,73 @@ main.js ← 以上所有（顶层编排，无人导入它）
 
 ## Development Notes
 
+### 产品与配件模型
+
 - 产品参数为自由 key-value，不同产品类型字段不同（参见 `data/products.json`）。`utils.js` 的 `normalizeProductParameters()` 在打开项目时对特殊参数做规范化（如 "included" 类标记转为 `true`）
-- **产品+配件模型**：`quoteItems` 数组中的条目分两种类型（`type` 字段）：
+- **产品名称可编辑**：产品条卡片和报价单中的 `enName` 字段可直接编辑（编辑器 + 全屏模式均支持），修改后自动同步到预览
+- `quoteItems` 数组中的条目分两种类型（`type` 字段）：
   - `"product"`：主产品，可上移/下移/删除/添加配件，删除时连带其配件
   - `"accessory"`：配件，通过 `parentId` 绑定父产品，不可独立移动，紧跟父产品排列
   - 配件卡片样式不同（虚线边框 + "配件"标签），名称可编辑（`accessoryName` 字段）
   - **配件参数结构为数组**：`parameters: [{ name, quantity, unitPrice, lineTotal, unit }]`，每个参数行有独立的数量/单价/行总价/单位。旧格式 `{key: true}` 对象在 `normalizeQuoteItem` 中自动迁移
-  - **配件每行参数独立单位**：每个参数行有自己的 `unit` 字段，默认为空（无兜底 `"set"`）。空单位时数量/单价无后缀；有单位时**数量**后缀遵循复数规则（qty=1 → `/unit`，qty>1 → `/units`），**单价**后缀始终用单数形式（`/unit`，不加 s）。单位输入框聚焦时下方显示快捷选项列表（`data-unit-pick`）
-  - **配件卡片级定价已移除**：pricing 只保留 `totalAmount`（由 `recalcAccessoryTotal()` 汇总参数行总价，用于报价总价汇总），不再有卡片级 `quantity`/`unitPrice`
+  - **配件卡片级定价已移除**：pricing 只保留 `totalAmount`（由 `recalcAccessoryTotal()` 汇总参数行总价），不再有卡片级 `quantity`/`unitPrice`
   - `buildItemGroups()` 将扁平数组分组（产品+其配件），移动/删除按组操作
   - 报价单中配件行为多行结构：主行只显示名称（最右列留空），子行显示各参数的数量/单价/行总价（含 `$` 前缀）
 - **产品选择逻辑**：产品条上的卡片支持点击切换——点击未选中的产品添加到清单（按添加顺序自动编号），点击已选中的产品移除及其配件。允许空产品列表（新建项目仍默认预置欧式葫芦）。点击产品后自动滚动到对应序号卡片（补偿 sticky 产品条高度，`.module-editor.scrollTo()`）
-- **预览→编辑区导航优化**：`switchToModule` 在同模块时跳过 `renderEditorPage()` 全量重渲染——同模块无 `itemIndex` 直接返回，有 `itemIndex` 时仅滚动到目标卡片。跨模块时才重渲染 + 滚动
-- 数量/单价输入框仅允许纯数字输入（`inputmode="decimal"`）。**产品**数量后缀动态：1 → `/set`，>1 → `/sets`；单价固定 `/set`。**配件**每行参数有独立 `unit` 字段（默认空），数量后缀为空时不显示，有单位时 qty=1 → `/unit`，qty>1 → `/units`（加 s 复数）；单价后缀有单位时始终为 `/unit`（单数，不加 s）
-- **价格列 `$` 对齐**：报价单中 Total Amount 列和 Summary 行（SUBTOTAL/FREIGHT/TOTAL）的数值使用 `text-align: left; padding-left: 20px`，确保所有 `$` 符号在同一竖线上对齐。Summary grid 为 `1fr 147px`（147px 精确匹配 Total Amount 列宽）。三处 CSS 同步
-- **TOTAL 可编辑**：Pricing 模块的 TOTAL 字段可编辑。启用 Subtotal + Freight 时，编辑 TOTAL 会反算 FREIGHT（`recalcFreightFromTotal`）；未启用时 TOTAL 直接使用用户输入值
-- **配件序号颜色**：配件序号圆圈为橙色（`#e8830c`），产品为蓝色（`#1f5bd6`），通过 `.is-accessory .quote-item-no` 覆盖
-- 报价单中所有产品/配件分项之间通过 `product-row-separated` 类添加双线分隔（`border-top: 2px double #1d1d1d`）
-- 报价单模板统一在 `quote-template.js`（纯函数模块，无浏览器/Node API），预览和 PDF 共用 `quoteBodyMarkup(data, images, params, options)`。差异通过 `options` 参数处理：`imageSrc`（图片路径）、`draggable`（拖拽属性）、`logoSrc`、`galleryClasses`、`heroTitleFallback`、`labels`（翻译后的模板标签覆盖默认英文标签）、`interactive`（预览区行内编辑）、`galleryPlaceholder`（画廊空图占位符，仅全屏非纯净模式）
-- `quote-template.js` 导出 `LABEL_KEYS`（18 个标签 key 数组）和 `DEFAULT_LABELS`（默认英文标签值），翻译时标签与数据文本一起批量发送给翻译 API，翻译结果存入 `translation.labels`。渲染时 `quoteBodyMarkup` 内部合并 `options.labels` 与 `DEFAULT_LABELS`
-- 画廊渲染使用 CSS Grid（`gallery-1` 到 `gallery-6` 类名控制列数），行高 `auto` 图片按原始比例自然显示。样式维护两处：`css/quote-sheet-content.css`（浏览器预览，`renderQuote.mjs` 直接读取用于 PDF 导出）和 `templates/style.css`（独立 HTML 模板）。PDF 导出时覆盖去掉 figure 的边框/背景/圆角
-- 项目列表卡片为 3 列纵向布局，顶部显示真实报价单缩略预览（CSS `transform: scale(0.26)` + `contain: layout paint`），下方显示标题/客户/编号/产品/金额/时间，右下角三点菜单。`database.mjs` 的 `normalizeProjectListRow` 返回完整 `data` 字段供前端计算金额和渲染预览
+- 数量/单价输入框仅允许纯数字输入（`inputmode="decimal"`）。**产品**数量后缀动态：1 → `/set`，>1 → `/sets`；单价固定 `/set`。**配件**每行参数有独立 `unit` 字段（默认空），数量后缀为空时不显示，有单位时 qty=1 → `/unit`，qty>1 → `/units`（加 s 复数）；单价后缀有单位时始终为 `/unit`（单数，不加 s）。单位输入框聚焦时下方显示快捷选项（`data-unit-pick`）
+
+### 报价单模板与渲染
+
+- 报价单模板统一在 `quote-template.js`（纯函数模块，无浏览器/Node API），预览和 PDF 共用 `quoteBodyMarkup(data, images, params, options)`。差异通过 `options` 参数处理：`imageSrc`、`draggable`、`logoSrc`、`galleryClasses`、`heroTitleFallback`、`labels`（翻译标签覆盖默认英文）、`interactive`（预览区行内编辑）、`galleryPlaceholder`
+- `quote-template.js` 导出 `LABEL_KEYS`（18 个标签 key）和 `DEFAULT_LABELS`（默认英文标签值），翻译时标签与数据文本一起批量发送，结果存入 `translation.labels`。渲染时 `quoteBodyMarkup` 合并 `options.labels` 与 `DEFAULT_LABELS`
+- **画廊渲染**：CSS Grid（`gallery-1` 到 `gallery-6` 控制列数），行高 `auto` 图片按原始比例显示。样式维护两处：`css/quote-sheet-content.css`（浏览器预览，`renderQuote.mjs` 直接读取用于 PDF）和 `templates/style.css`（独立 HTML 模板）。PDF 导出时覆盖去掉 figure 的边框/背景/圆角
+- **价格列 `$` 对齐**：Total Amount 列和 Summary 行使用 `text-align: left; padding-left: 20px`，确保 `$` 符号竖线对齐。Summary grid 为 `1fr 147px`（匹配 Total Amount 列宽）。三处 CSS 同步
+- **TOTAL 可编辑**：启用 Subtotal + Freight 时，编辑 TOTAL 反算 FREIGHT（`recalcFreightFromTotal`）；未启用时 TOTAL 直接使用用户输入值
+- **配件序号颜色**：配件橙色（`#e8830c`），产品蓝色（`#1f5bd6`），通过 `.is-accessory .quote-item-no` 覆盖
+- **配件序号字体**：配件序号 `<td class="acc-no-cell">` 加粗 700，与产品序号统一（`font-size: 16.5px`）
+- **价格列左对齐**：Qty/Unit Price/Total 三列及表头统一 `text-align: left`，Qty 和 Unit Price 列 `padding-left: 10px`，Total 列 `padding-left: 20px`
+- **数量/单价 spinner 箭头**：编辑器和全屏 Pro 模式中所有数量(Quantity)和单价(Unit Price)输入框旁有 ↑↓ 按钮（`data-step`/`data-acc-step`/`data-fse-step`），点击增减 1 并 dispatch input 事件复用现有数据绑定逻辑。编辑器用 `.inc-btn`（产品）/ `.inc-btn--sm`（配件参数），全屏用 `.fse-inc-btn`。外层统一用 `.step-field-wrap`（flex 容器）包裹 input 区域和按钮
+- 产品/配件分项之间通过 `product-row-separated` 类添加双线分隔（`border-top: 2px double #1d1d1d`）
+- 项目列表卡片为 3 列纵向布局，顶部真实报价单缩略预览（`transform: scale(0.26)` + `contain: layout paint`），`normalizeProjectListRow` 返回完整 `data` 字段供前端渲染
 - `state.js` 的 `normalizeQuoteLayout` / `defaultQuoteSectionOrder` / `defaultPartyOrder` 已迁移至 `quote-template.js`，`state.js` 通过 re-export 保持向后兼容
 - 预览通过 CSS `transform: scale(state.zoom)` 缩放，原始尺寸 1024×1536px
+
+### 预览区行内编辑
+
+`options.interactive` 为 true 时，报价单模板支持在预览区直接编辑数据：
+
+- **产品自定义参数**：`__custom_` 前缀参数渲染为 `<input class="pe-param-input">`，内置参数保持纯文本。`+ Param` 浮动按钮添加新参数
+- **配件可编辑行**：`_new` 标记的配件参数行渲染为卡片行（`.pe-new-row`），内部用 `.pe-line-input` 编辑名称/数量/单位/单价
+- **日期选择器**：报价日期旁日历图标（`.pe-date-icon`）触发隐藏的 `<input type="date">`，选完转英文长格式存储
+- **quietDirty()**：输入事件中更新 dirty 标记和删除翻译但不触发重渲染（防失焦）。`blur` 时调 `_refreshEditor()` 同步编辑区
+- **靶向 DOM 更新**：`updateLineTotalCell()` / `updateSummaryCells()` 直接更新依赖值，不做全量重渲染
+- **`_refreshEditor` 回调**：通过 `registerPreviewCallbacks` 注入 `renderEditorPage`
+- **`normalizeAccessoryParameters`** 保留 `_new` 标记：`...(p._new ? { _new: true } : {})`，防止规范化时丢失
+- CSS 用 `pe-` 前缀，属性用 `data-edit-` 前缀，样式在 `css/preview.css`
+
+### 全屏 Pro 编辑模式
+
+`views/fullscreen-editor.js`：预览面板进入 Fullscreen API，叠加命令栏 + 暗色编辑卡片 + 迷你工具栏。6 个 section 通过药丸切换，输入防抖 200ms 后仅刷新预览。
+
+- **防全渲染**：全屏模式下所有操作只调 `refreshCardBody()` + `markDirty()`，不调用 `renderEditorPage()`
+- **Scroll Spy**：监听预览滚动同步命令栏药丸高亮（仅视觉）。用户主动切换时 `scrollSpySuppressed` 抑制 600ms（products 和 pricing 共享 `previewSection: "pricing"`）
+- **纯净预览模式**：`` ` `` 键或 eye 按钮进入，隐藏所有编辑 UI，`state.purePreview` 控制 `options.interactive`
+- **产品快捷操作**：hover 产品卡片显示上移/下移/复制/删除按钮（`data-fse-move-up/down/duplicate/delete`）
+- **预览区图片管理**：点击图片弹出暗色浮动菜单（Upload/Library/Remove）。`registerFullscreenCallbacks({ uploadImageFromFile })` 注入上传函数，全屏模式下跳过 `renderEditorPage()` 防止销毁全屏元素
+- **清理**：`cleanupFullscreenPro()` 退出全屏时移除监听、恢复工具栏。`editor.js` 的 `fullscreenchange` 处理器负责 DOM 清理和 `renderEditorPage()` 重建
+- 键盘快捷键：`1-6` / `←→` 切换 section、`` ` `` 纯净预览、`Ctrl+S` 保存、`↑↓` 切换产品、`ESC` 退出全屏
+- 样式在 `css/fullscreen-editor.css`，`fse-` 前缀，暗色主题
+
+### 基础设施
+
 - 唯一运行时配置：`PORT` 环境变量（默认 5173）
 - 数据库使用 Node 24 同步 API（`DatabaseSync`、`db.prepare().get()` / `.all()` / `.run()`）
 - `user-store.mjs` 通过 `initUserStore(db, hashPassword)` 注入数据库实例和密码哈希函数，由 `database.mjs` 的 `initDatabase()` 调用
-- `ui.js` 的 `showContentModal()` 用于需要自定义 HTML 内容的弹窗（项目命名、图库浏览、用户管理等），通过 `onMount(root, close)` 回调绑定内部事件
-- **项目切换面板**：预览工具栏右侧"项目切换"按钮触发右侧滑入面板（宽 45vw），2 列卡片网格，每张卡片含缩略预览+项目信息。hover 时预览变灰+中央显示"使用"。`editor.js` 中的 `openProjectSwitchPanel()` 调用 `loadWorkspace()` 刷新数据后渲染，`switchCardMarkup()` 复用 `quoteBodyMarkup` 生成缩略图，`scaleSwitchPreviews()` 动态计算缩放比
-- **图片管理滚动**：`.selected-images` 和 `.choose-grid` 设有 `max-height: 280px` + `overflow-y: auto` + 隐藏滚动条，图片多时可鼠标滚轮浏览。**CSS Grid 嵌套场景中此方案失效**——子元素的 `height` + `overflow-y: auto` 不产生约束（grid 行根据内容自动扩展），必须用普通 `display: block` 包裹容器做滚动层（参见 `editor.css` 的 `.sidebar-asset-scroll`、`.project-switch-scroll`）
-- **产品条布局**：`.product-strip` 使用 `repeat(6, 1fr)` 均分 6 张产品卡片，无横向滚动。参数编辑模块中产品条用 `.product-strip-sticky`（`position: sticky; top: 0`）固定在编辑区顶部，滚动参数列表时始终可见。`.editor-card` 已去掉 `overflow: hidden` 以允许 sticky 生效，滚动由外层 `.module-editor` 控制
-- **预览区行内编辑**：`options.interactive` 为 true 时，报价单模板支持在预览区直接编辑数据：
-  - **产品自定义参数**：`__custom_` 前缀参数渲染为 `<input class="pe-param-input">`（可见输入框），内置参数保持纯文本。`+ Param` 浮动按钮添加新参数
-  - **配件可编辑行**：`_new` 标记的配件参数行渲染为卡片行（`.pe-new-row`），内部用下划线输入框（`.pe-line-input`）编辑名称/数量/单位/单价。添加配件时自动预置一个 `_new` 参数行
-  - **日期选择器**：报价日期旁显示日历图标（`.pe-date-icon`），点击触发隐藏的 `<input type="date">`，选完后转为英文长格式存储（如 `"June 9, 2025"`）。编辑区和预览区均有此功能
-  - **quietDirty()**：输入事件中调用，更新 dirty 标记和删除翻译但不触发预览重渲染（防输入框失焦）。`blur` 事件中调用 `_refreshEditor()` 同步编辑区
-  - **靶向 DOM 更新**：`updateLineTotalCell()` / `updateSummaryCells()` 直接更新依赖值，不做全量重渲染
-  - **`_refreshEditor` 回调**：通过 `registerPreviewCallbacks` 注入 `renderEditorPage`，预览区编辑失焦后刷新编辑区面板
-  - **`normalizeAccessoryParameters`** 保留 `_new` 标记：`...(p._new ? { _new: true } : {})`，防止规范化时丢失
-  - CSS 统一用 `pe-` 前缀（preview-edit），属性用 `data-edit-` 前缀。样式在 `css/preview.css`
-- **全屏 Pro 编辑模式**（`views/fullscreen-editor.js`）：预览工具栏的全屏按钮触发，将预览面板进入 Fullscreen API，底部叠加命令栏（`fse-bar`）+ 右侧暗色上下文编辑卡片（`fse-card`）+ 顶部迷你工具栏（`fse-mini-toolbar`，替换原工具栏的撤销/重做/缩放/适配）。6 个 section（Info/Parties/Products/Pricing/Terms/Footer）通过药丸切换，卡片内容动态渲染对应表单。输入防抖 200ms 后仅刷新预览（`quietDirty()`），blur 时 `markDirty()` 同步
-  - **Scroll Spy**：监听预览滚动，自动检测当前可见 section 并同步更新命令栏药丸高亮（仅视觉，不同步右侧卡片内容）。用户主动切换（点击药丸/方向键）时通过 `scrollSpySuppressed` 标志抑制 600ms，避免 scroll spy 抢回控制权（products 和 pricing 共享同一个 `previewSection: "pricing"`，不抑制会导致切换被覆盖）
-  - **键盘快捷键**：`1-6` 切换 section、`←→` 切换 section、`` ` `` 切换纯净预览、`Ctrl+S` 保存、`↑↓` 在 Products 中切换高亮产品、`ESC` 退出全屏
-  - **字段↔预览高亮**：卡片中 hover 带有 `data-fse-highlight-path` 的字段时，预览对应元素添加 `fse-preview-highlight` 脉冲动画（CSS `@keyframes fse-pulse`）
-  - **产品快捷操作**：hover 产品卡片显示上移/下移/复制/删除按钮（`data-fse-move-up/down/duplicate/delete`），操作后仅 `refreshCardBody()` + `markDirty()`，不触发全量重渲染
-  - **中英文切换**：右上角操作栏语言按钮切换所有 UI 标签（`LABELS` 对象维护 en/zh 双语），操作栏还包含保存和导出 PDF 按钮
-  - **防全渲染**：全屏模式下所有操作（编辑/添加/删除/移动）只调 `refreshCardBody()` + `scheduleDebouncedRender()` / `markDirty()`，不调用 `renderEditorPage()`。预览区 section/party/item 点击时检查 `state.previewFullscreen`，仅调 `syncSectionFromPreview()` 联动命令栏。退出全屏只允许 ESC（全屏按钮不再触发 `exitFullscreen`）
-  - **清理**：`cleanupFullscreenPro()` 在退出全屏时移除 scroll spy 监听、键盘监听、高亮状态，恢复原工具栏。`editor.js` 的 `fullscreenchange` 处理器负责 DOM 清理和 `renderEditorPage()` 重建
-  - **纯净预览模式**：迷你工具栏的 eye 按钮（或 `` ` `` 快捷键）进入，隐藏所有编辑 UI（命令栏/卡片/操作栏），渲染无交互的原始报价单模板。退出按钮在顶部居中。`state.purePreview` 控制 `options.interactive`
-  - **预览区图片管理**：全屏模式下点击预览区的画廊图片或产品图片，弹出暗色浮动菜单（Upload/Library/Remove）。无图时画廊显示虚线占位符、产品参数区右侧显示 60×60 虚线框"+"按钮（`float: right`，不影响参数布局）。图库选择器为暗色全屏弹窗（4 列网格）。`registerFullscreenCallbacks({ uploadImageFromFile })` 注入上传函数，`uploadImageFromFile` 在全屏模式下跳过 `renderEditorPage()` 防止销毁全屏元素
-  - **Pricing Freight 切换**：预览区 Summary 行显示 Subtotal + Freight 开关（`.summary-freight-toggle` + `.freight-switch`），点击切换 `data.pricing.freightMode`，即时重算汇总
-  - **底部导航栏**：macOS 风格 frosted glass（`blur(24px) saturate(180%)`），6 个药丸垂直布局（SVG 图标 + 标签），选中态柔和蓝色半透明（`rgba(29,102,255,0.16)`），纯导航无操作按钮
-  - 样式在 `css/fullscreen-editor.css`，使用 `fse-` 前缀，暗色主题（卡片 `#252d3e`，深色背景 `#1e2536`）
+- `ui.js` 的 `showContentModal()` 用于自定义 HTML 弹窗，通过 `onMount(root, close)` 回调绑定内部事件
+- **项目切换面板**：预览工具栏右侧按钮触发右侧滑入面板（宽 45vw），2 列卡片网格，`switchCardMarkup()` 复用 `quoteBodyMarkup` 生成缩略图
+- **图片管理滚动**：`.selected-images` / `.choose-grid` 设 `max-height: 280px` + `overflow-y: auto`。CSS Grid 嵌套中此方案失效，必须用 `display: block` 包裹容器做滚动层（参见 `.sidebar-asset-scroll`、`.project-switch-scroll`）
+- **产品条布局**：`.product-strip` 使用 `repeat(6, 1fr)` 均分 6 张卡片。参数编辑模块中 `.product-strip-sticky` 固定在编辑区顶部
+- **预览→编辑区导航**：`switchToModule` 同模块时跳过全量重渲染——有 `itemIndex` 时仅滚动到目标卡片，跨模块时才重渲染 + 滚动
 
 ### Common Development Patterns
 
@@ -227,7 +241,7 @@ main.js ← 以上所有（顶层编排，无人导入它）
 
 - **SQLite WAL 模式**：`initDatabase()` 中 `PRAGMA journal_mode=WAL`，提升并发读写性能
 - **自动备份**：启动时备份一次 + 每 6 小时定时备份，使用 `VACUUM INTO` 生成独立一致副本至 `storage/backups/`，保留最近 7 份（`backupDatabase()`）
-- **事务保护**：`database.mjs` 的 `withTransaction(fn)` 工具函数（手动 `BEGIN`/`COMMIT`/`ROLLBACK`），包裹 createProject/updateProject/renameProject/migrateProjectNames/deleteUser 等多步操作。`user-store.mjs` 通过 `initUserStore(db, hashPassword, withTransaction)` 获取事务函数
+- **事务保护**：多步写操作（createProject/updateProject/renameProject/deleteUser 等）均由 `withTransaction(fn)` 包裹（手动 `BEGIN`/`COMMIT`/`ROLLBACK`）
 - **Session 过期清理**：启动时清理一次 + 每 24 小时定时清理，删除 `sessions` 表中超过 30 天的记录（`cleanExpiredSessions()`）
 - **数据容错**：前端 `sanitizeProjectData(data)` 在 `openProject` 中补齐缺失的顶层字段（quoteMeta/from/to/footer/pricing/terms/quoteItems 等），防止旧数据或损坏数据导致白屏。后端 `parseJson()` 解析失败返回空对象
 - **全局错误捕获**：前端 `window.onerror` + `unhandledrejection` 通过 `showToast` 显示红色提示（非白屏）；后端 `uncaughtException` 直接 `process.exit(1)` 防止状态不一致

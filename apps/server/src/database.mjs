@@ -444,7 +444,7 @@ function withoutProjectName(data) {
 export function backupDatabase() {
   try {
     mkdirSync(BACKUP_DIR, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
     const backupPath = path.join(BACKUP_DIR, `app-${timestamp}.sqlite`);
     // VACUUM INTO 要求目标文件不存在，同秒重启会撞名，先清除
     if (existsSync(backupPath)) unlinkSync(backupPath);
