@@ -150,6 +150,10 @@
   line-height: 1.18;
 }
 
+.quote-sheet .acc-no-cell {
+  font-weight: 700;
+}
+
 .quote-sheet .product-spec-with-image {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 184px;

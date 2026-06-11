@@ -328,7 +328,7 @@ function accessoryRowsMarkup(item, index, interactive = false) {
   }).join("");
 
   return `<tr class="product-row accessory-row ${rowSep}" ${itemAttr}>
-    <td rowspan="${rowCount}">${index + 1}.</td>
+    <td rowspan="${rowCount}" class="acc-no-cell">${index + 1}.</td>
     <td>${nameHtml}</td>
     <td></td><td></td><td class="product-total-cell">${deleteBtn}</td>
   </tr>${detailRows}`;
